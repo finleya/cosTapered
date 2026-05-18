@@ -1,0 +1,21 @@
+Package: cosTapered
+Type: Package
+Title: Tapered Change-of-Support Gaussian Process Model
+Version: 0.0.1
+Authors@R: c(
+    person("Andrew O.", "Finley", role = c("aut", "cre"), email = "finleya@msu.edu"),
+    person("Lu", "Zhang", role = "aut"),
+    person("Arne", "Nothdurft", role = "aut"),
+    person("Sudipto", "Banerjee", role = "aut")
+    )
+Description: Lightweight implementation of the Bayesian change-of-support
+    Gaussian process model for areal observations and fine-support raster
+    covariates described by Zhang et al. (2024)
+    <doi:10.1016/j.jag.2024.104224>.
+License: GPL-3
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: sf, raster, exactextractr, Matrix, methods
+Suggests: ggplot2, testthat (>= 3.0.0)
+Config/testthat/edition: 3
+NeedsCompilation: yes
