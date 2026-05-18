@@ -1,0 +1,267 @@
+---
+title: "Getting Started with cosTapered"
+author: "Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with cosTapered}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+## Overview
+
+`cosTapered` fits a Bayesian change-of-support model for data where responses
+are observed on polygons, covariates are available on a raster, and predictions
+are needed for raster cells or other polygons. Typical forest inventory uses
+include plot-level field observations, remotely sensed raster covariates, and
+stand- or management-unit predictions.
+
+The main workflow is:
+
+1. Build the raster covariate stack exactly as the model should see it.
+2. Prepare observed-support weights with `cos_prepare()`.
+3. Specify priors with `cos_default_priors()`.
+4. Fit covariance parameters with `cos_fit()`.
+5. Recover observed-support latent quantities with `cos_recover_B()`.
+6. Predict fine-support or areal-support quantities with
+   `cos_predict_fine()` and `cos_predict_areal()`.
+
+The package does not add an intercept, scale covariates, buffer points, choose
+the taper distance `gamma`, or convert areal means to totals. Those choices are
+left to the analyst.
+
+## Example data
+
+The package includes a small simulated example with a canopy-height raster,
+observed plot polygons, areal prediction polygons, a forest boundary, and
+known simulation truth.
+
+```{r packages}
+library(sf)
+library(raster)
+library(ggplot2)
+library(cosTapered)
+```
+
+```{r read-data}
+chm <- raster(system.file("extdata", "example_chm.tif", package = "cosTapered"))
+names(chm) <- "chm"
+
+B_sf <- st_read(system.file("extdata", "example_B.gpkg",
+                            package = "cosTapered"), quiet = TRUE)
+U_sf <- st_read(system.file("extdata", "example_U.gpkg",
+                            package = "cosTapered"), quiet = TRUE)
+forest_sf <- st_read(system.file("extdata", "example_forest.gpkg",
+                                 package = "cosTapered"), quiet = TRUE)
+truth <- readRDS(system.file("extdata", "example_truth.rds",
+                             package = "cosTapered"))
+
+truth[c("beta_true", "tau_B_sq_true", "sigma_sq_true",
+        "eff_range_true", "phi_true", "gamma", "n_B", "n_U")]
+```
+
+Users prepare the raster covariates. Here we add an intercept raster and keep
+the canopy-height layer unscaled.
+
+```{r build-raster-design}
+intercept <- chm
+intercept[] <- ifelse(is.na(getValues(chm)), NA_real_, 1)
+names(intercept) <- "intercept"
+
+X_rast <- stack(intercept, chm)
+names(X_rast) <- c("intercept", "chm")
+```
+
+```{r input-plot}
+chm_df <- as.data.frame(chm, xy = TRUE, na.rm = TRUE)
+names(chm_df) <- c("x", "y", "chm")
+
+ggplot() +
+  geom_tile(data = chm_df, aes(x = x, y = y, fill = chm),
+            width = xres(chm), height = yres(chm)) +
+  geom_sf(data = U_sf, fill = NA, color = "white", linewidth = 0.25) +
+  geom_sf(data = forest_sf, fill = NA, color = "black", linewidth = 0.55) +
+  geom_sf(data = B_sf, fill = NA, color = "#c1121f", linewidth = 0.45) +
+  scale_fill_viridis_c(option = "cividis") +
+  coord_sf(expand = FALSE) +
+  labs(title = "Raster covariate, observed plots, and prediction polygons",
+       fill = "CHM", x = NULL, y = NULL) +
+  theme_bw()
+```
+
+## Prepare supports
+
+`cos_prepare()` computes area weights linking observed polygons to raster
+cells, observed-support covariates, the observed-support nugget matrix, and
+the distance/taper information needed for spatial fitting.
+
+This chunk is not evaluated during vignette build because it does geometry
+overlay work, but it is the code to run in an analysis.
+
+```{r prepare, eval = FALSE}
+prep <- cos_prepare(
+  X_rast = X_rast,
+  B_sf = B_sf,
+  response_col = "y_B",
+  gamma = truth$gamma,
+  taper_code = truth$taper_code,
+  n_threads = 1,
+  verbose = FALSE
+)
+
+summary(prep)
+```
+
+## Specify priors
+
+Priors are specified on the covariate scale supplied by the user. The package
+uses `tau_B_sq`, the average observed-support nugget variance, because this is
+usually easier to think about than the fine-support nugget variance `tau_sq`.
+
+```{r priors, eval = FALSE}
+priors <- cos_default_priors(
+  prep = prep,
+  beta_mu = c(intercept = 40, chm = 1),
+  beta_sd = c(intercept = 20, chm = 2),
+  tau_B_shape = 2,
+  tau_B_scale = truth$tau_B_sq_true,
+  sigma_shape = 2,
+  sigma_scale = truth$sigma_sq_true,
+  phi_lower = 3 / 600,
+  phi_upper = 3 / 80
+)
+```
+
+The exponential effective range is approximately `3 / phi`. Thus
+`phi_lower = 3 / 600` and `phi_upper = 3 / 80` allow effective ranges from
+about 80 to 600 map units.
+
+## Fit the model
+
+`cos_fit()` samples the collapsed posterior for covariance parameters. Use
+longer chains and multiple starting values for real analyses.
+
+```{r fit, eval = FALSE}
+fit <- cos_fit(
+  prep = prep,
+  priors = priors,
+  n_chains = 3,
+  starting = data.frame(
+    tau_B_sq = truth$tau_B_sq_true * c(0.5, 1, 2),
+    sigma_sq = truth$sigma_sq_true * c(0.5, 1, 2),
+    phi = truth$phi_true * c(0.75, 1, 1.25)
+  ),
+  tuning = c(log_tau_B_sq = 0.25, log_sigma_sq = 0.25, z_phi = 0.25),
+  n_batch = 100,
+  batch_length = 25,
+  seed = 1,
+  verbose = TRUE
+)
+
+summary(fit, burn_in = 50)
+plot(fit, burn_in = 50)
+```
+
+Trace plots should move across stable regions after burn-in. If `phi` piles up
+against a prior bound, revisit the effective range bounds or the taper
+distance `gamma`.
+
+## Recover and predict
+
+`cos_recover_B()` samples regression coefficients, observed-support spatial
+effects, and observed-support latent means conditional on retained covariance
+parameter draws.
+
+```{r recover, eval = FALSE}
+rec_B <- cos_recover_B(
+  fit = fit,
+  burn_in = 50,
+  n_samples = 100,
+  seed = 1,
+  verbose = FALSE
+)
+
+summary(rec_B, include_eta_B = TRUE)
+```
+
+Fine-support prediction returns the latent raster-scale response by default.
+
+```{r predict-fine, eval = FALSE}
+pred_fine <- cos_predict_fine(
+  fit = fit,
+  rec_B = rec_B,
+  method = "mean",
+  verbose = FALSE
+)
+
+summary(pred_fine)
+```
+
+Areal prediction first builds prediction-support blocks and then predicts
+support averages.
+
+```{r predict-areal, eval = FALSE}
+U_blocks <- cos_make_areal_blocks(
+  U_sf = U_sf,
+  X_rast = X_rast,
+  id_col = "U_id",
+  verbose = FALSE
+)
+
+pred_U <- cos_predict_areal(
+  fit = fit,
+  rec_B = rec_B,
+  U_blocks = U_blocks,
+  method = "mean",
+  verbose = TRUE
+)
+
+summary(pred_U)
+```
+
+Prediction functions default to `target = "latent"`. Use
+`target = "observed"` when the prediction should include a new independent
+nugget draw on the requested support.
+
+## Cross validation
+
+`cos_cv_observed()` performs K-fold cross validation by refitting the model to
+training plots and predicting held-out plot polygons. By default it scores the
+observed response. In simulations with known latent truth, it can score both
+latent and observed targets from the same refits.
+
+```{r cv, eval = FALSE}
+set.seed(1)
+fold_id <- sample(rep(seq_len(10), length.out = nrow(B_sf)))
+
+cv <- cos_cv_observed(
+  fit = fit,
+  X_rast = X_rast,
+  B_sf = B_sf,
+  target = c("latent", "observed"),
+  latent_col = "eta_B_true",
+  k = 10,
+  fold_id = fold_id,
+  fit_args = list(n_batch = 50, batch_length = 8),
+  recover_args = list(burn_in = 100, n_samples = 60),
+  seed = 1,
+  verbose = FALSE
+)
+
+summary(cv)
+```
+
+For model-comparison guidance, see the spatial-guidance vignette. For model
+and computational details, see the model-details vignette.
