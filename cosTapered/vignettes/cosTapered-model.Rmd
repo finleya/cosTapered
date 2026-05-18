@@ -34,8 +34,8 @@ priors, a bounded uniform prior for the exponential decay parameter, simple S3
 objects, and latent or observed prediction targets.
 
 A longer set of modeling notes is installed with the package as
-[modeling_notes.pdf](../guiding_docs/modeling_notes.pdf), with the LaTeX
-source included in the same installed `guiding_docs` directory.
+[modeling_notes.pdf](modeling_notes.pdf). The LaTeX source is included with
+the package source.
 
 ## Spatial supports
 
