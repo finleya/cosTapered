@@ -17,8 +17,10 @@ The files are installed under \file{extdata} and can be located with
   \item \file{example_forest.gpkg}: forest boundary for plotting.
   \item \file{example_truth.rds}: known simulation parameter values.
 }
-The example data are a small subset of a larger dataset collected by
-Arthur Spitta. The subset was prepared for package examples and tests.
+The example data are a small subset of a larger dataset. The canopy height
+model data were collected by Arthur Spitta
+\email{arthur.spitta@students.boku.ac.at}. The subset was prepared for
+package examples and tests.
 
 The observed responses in \file{example_B.gpkg} were generated with
 \code{\link{cos_simulate_data}} using the included canopy-height raster,
@@ -28,6 +30,10 @@ forest boundary, and known parameter values stored in
 workflow: it prepares the source raster and vector files, calls
 \code{\link{cos_simulate_data}}, and writes the resulting files into
 \file{cosTapered/inst/extdata}.
+}
+\author{
+Canopy height model data collected by Arthur Spitta
+\email{arthur.spitta@students.boku.ac.at}.
 }
 \references{
 Zhang, L., Finley, A. O., Nothdurft, A., and Banerjee, S. (2024).
