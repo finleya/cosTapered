@@ -37,8 +37,17 @@ polygon-support problems remain computationally manageable.
 
 ```r
 install.packages("remotes")
-remotes::install_github("finleya/cosTapered", subdir = "cosTapered")
+remotes::install_github(
+  "finleya/cosTapered",
+  subdir = "cosTapered",
+  build_vignettes = TRUE
+)
 ```
+
+For a faster install without vignettes, omit `build_vignettes = TRUE`. In that
+case, use the source file `cosTapered/vignettes/cosTapered-model.Rmd` or
+reinstall with vignette building enabled before running
+`vignette("cosTapered-model", package = "cosTapered")`.
 
 ## Example
 
