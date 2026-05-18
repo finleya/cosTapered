@@ -19,7 +19,7 @@ fine-scale process over their footprints. The package uses a tapered
 exponential covariance for spatial residual variation so that large raster and
 polygon-support problems remain computationally manageable.
 
-![Example fine-support posterior mean and uncertainty](README_files/fine-prediction.png)
+![Example fine-support and stand-support latent predictions](README_files/fine-prediction.png)
 
 ## Features
 
