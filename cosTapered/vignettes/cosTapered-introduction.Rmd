@@ -22,15 +22,22 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-`cosTapered` fits a Bayesian change-of-support model for data where responses
-are observed on polygons, covariates are available on a raster, and predictions
-are needed for raster cells or other polygons. Typical forest inventory uses
-include plot-level field observations, remotely sensed raster covariates, and
-stand- or management-unit predictions.
+`cosTapered` fits Bayesian change-of-support (COS) models for spatial data
+whose responses, covariates, and prediction targets are measured on different
+supports. In the COS setting considered here, covariates are represented on a
+fine raster grid, responses are observed on polygons, and predictions can be
+made for either fine raster cells or other polygon supports.
+
+Development of the package was motivated by data structures common in natural
+resource and forest inventory applications, where field responses are measured
+on plots, remotely sensed covariates are available as raster layers, and
+management decisions often require predictions for stands or other irregular
+areal units. The model follows the tapered COS formulation used by Zhang et
+al. (2024) for incompatible spatial forest damage data.
 
 The main workflow is:
 
-1. Build the raster covariate stack exactly as the model should see it.
+1. Supply the raster covariate stack used to form the design matrix.
 2. Prepare observed-support weights with `cos_prepare()`.
 3. Specify priors with `cos_default_priors()`.
 4. Fit covariance parameters with `cos_fit()`.
@@ -38,9 +45,11 @@ The main workflow is:
 6. Predict fine-support or areal-support quantities with
    `cos_predict_fine()` and `cos_predict_areal()`.
 
-The package does not add an intercept, scale covariates, buffer points, choose
-the taper distance `gamma`, or convert areal means to totals. Those choices are
-left to the analyst.
+The workflow keeps data preparation choices explicit. The raster stack defines
+the design matrix, including any intercept or transformed covariates; observed
+supports are supplied as polygons; the taper distance `gamma` is chosen before
+fitting; and areal predictions are returned as support averages, leaving any
+conversion to totals to the analysis context.
 
 ## Example data
 
@@ -72,8 +81,10 @@ truth[c("beta_true", "tau_B_sq_true", "sigma_sq_true",
         "eff_range_true", "phi_true", "gamma", "n_B", "n_U")]
 ```
 
-Users prepare the raster covariates. Here we add an intercept raster and keep
-the canopy-height layer unscaled.
+## Supply the raster design
+
+The model design matrix is taken from the layers in the raster stack. Here the
+stack contains an intercept layer and the canopy-height layer.
 
 ```{r build-raster-design}
 intercept <- chm
@@ -101,14 +112,14 @@ ggplot() +
   theme_bw()
 ```
 
-## Prepare supports
+## Prepare observed supports
 
 `cos_prepare()` computes area weights linking observed polygons to raster
 cells, observed-support covariates, the observed-support nugget matrix, and
 the distance/taper information needed for spatial fitting.
 
-This chunk is not evaluated during vignette build because it does geometry
-overlay work, but it is the code to run in an analysis.
+This is the first model-building step after the raster design and observed
+polygons have been assembled.
 
 ```{r prepare, eval = FALSE}
 prep <- cos_prepare(
@@ -178,7 +189,7 @@ Trace plots should move across stable regions after burn-in. If `phi` piles up
 against a prior bound, revisit the effective range bounds or the taper
 distance `gamma`.
 
-## Recover and predict
+## Recover observed-support quantities
 
 `cos_recover_B()` samples regression coefficients, observed-support spatial
 effects, and observed-support latent means conditional on retained covariance
@@ -195,6 +206,8 @@ rec_B <- cos_recover_B(
 
 summary(rec_B, include_eta_B = TRUE)
 ```
+
+## Predict fine or areal supports
 
 Fine-support prediction returns the latent raster-scale response by default.
 
@@ -232,8 +245,8 @@ summary(pred_U)
 ```
 
 Prediction functions default to `target = "latent"`. Use
-`target = "observed"` when the prediction should include a new independent
-nugget draw on the requested support.
+`target = "observed"` when the prediction should include support-level nugget
+variation on the requested support.
 
 ## Cross validation
 
@@ -265,3 +278,10 @@ summary(cv)
 
 For model-comparison guidance, see the spatial-guidance vignette. For model
 and computational details, see the model-details vignette.
+
+## Reference
+
+Zhang, L., Finley, A. O., Nothdurft, A., and Banerjee, S. (2024). Bayesian
+modeling of incompatible spatial data: A case study involving Post-Adrian storm
+forest damage assessment. *International Journal of Applied Earth Observation
+and Geoinformation*, 135, 104224. <https://doi.org/10.1016/j.jag.2024.104224>

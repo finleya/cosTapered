@@ -24,11 +24,11 @@ knitr::opts_chunk$set(
 
 This vignette helps users decide when the spatial change-of-support (COS)
 model is worth fitting, and whether prediction should target a latent areal
-mean or a future observed areal response. The short answer is that the spatial
-COS model is most useful when the response contains residual spatial structure
-that is strong enough, and persistent enough over distance, for nearby
-observed supports to inform held-out supports after covariates have been
-accounted for.
+mean or an observed areal response that includes nugget variation. The short
+answer is that the spatial COS model is most useful when the response contains
+residual spatial structure that is strong enough, and persistent enough over
+distance, for nearby observed supports to inform held-out supports after
+covariates have been accounted for.
 
 The main practical recommendations are:
 
@@ -36,11 +36,11 @@ The main practical recommendations are:
    distances comparable to the separation among observed supports and
    prediction units.
 2. Use the nonspatial COS model when residual spatial structure is weak,
-   short-ranged relative to the sampling design, or not scientifically
-   important for the intended prediction task.
-3. Decide first whether the scientific target is the latent areal mean
+   short-ranged relative to the sampling design, or not important for the
+   inferential objective.
+3. Decide first whether the inferential objective is the latent areal mean
    \(\eta_B\) or the observed areal response \(y_B\). These are different
-   validation targets.
+   prediction and validation targets.
 4. Do not interpret high observed-target coverage by itself as evidence of
    useful prediction. A model can achieve high coverage by producing very wide
    predictive intervals.
@@ -264,8 +264,8 @@ knitr::include_graphics("figures/cv_interval_width_by_target_model.png")
 For the latent target \(\eta_B\), the nonspatial model undercovers badly. Mean
 coverage is roughly 0.41 to 0.62 across the range grid. This is expected:
 when the validation target is the latent spatial mean, omitted residual
-spatial structure is not absorbed by a future nugget draw. The spatial model
-has much better latent-target coverage, roughly 0.86 to 0.95.
+spatial structure is not represented by the nugget component. The spatial
+model has much better latent-target coverage, roughly 0.86 to 0.95.
 
 For the observed target \(y_B\), the nonspatial model has very high coverage,
 about 0.98 to 1.00. This does not mean the nonspatial model is making sharp
@@ -314,8 +314,10 @@ includes nugget variation that no spatial model can fully predict.
 
 ## Choosing latent or observed prediction
 
-The target should be chosen from the scientific question, not from which score
-looks better.
+The target should be chosen from the inferential objective, not from which
+score looks better. In other words, decide whether the analysis is trying to
+learn the underlying support average or predict the observed response on that
+support.
 
 Use latent prediction when the target is the underlying support average:
 
@@ -326,10 +328,11 @@ Use latent prediction when the target is the underlying support average:
 
 This is often the relevant target for mapping forest condition, estimating
 stand means, ranking management units, or summarizing expected resource
-status. It excludes a new independent nugget realization. In the package, this
+status. It excludes support-level nugget variation. In the package, this
 corresponds to `target = "latent"` in areal or fine prediction functions.
 
-Use observed prediction when the target is a future measurement:
+Use observed prediction when the target is the measured response on the
+support:
 
 \[
 y_U = \eta_U+\epsilon_U.
@@ -343,22 +346,22 @@ For areal support \(U\), the nugget variance is
 \tau^2\sum_i g_{ki}^2.
 \]
 
-This is appropriate for cross validation against held-out observed responses,
-designing measurement expectations, or asking what another field observation
-might look like. In the package, this corresponds to `target = "observed"`.
+This is appropriate for cross validation against held-out observed responses
+or for predictions that should include measurement-scale variation. In the
+package, this corresponds to `target = "observed"`.
 
 ## Choosing spatial or nonspatial COS
 
 The nonspatial COS model is not a naive baseline. It still respects support
 averaging and uses the raster covariates. It is appropriate when residual
 spatial structure is negligible, short-ranged relative to the spacing of
-observed supports, or not important for the scientific question.
+observed supports, or not important for the inferential objective.
 
 The spatial COS model is appropriate when residual spatial dependence remains
 after covariates have been included. Its advantage is largest when the
 effective range is long enough that training supports provide information
 about held-out or prediction supports. The simulation suggests the following
-qualitative regimes for this dataset:
+pattern for this dataset:
 
 1. Short effective range, 25 to 150 m: little RMSPE gain from the spatial
    model. CRPS can still improve, but point-prediction advantage is limited.
@@ -368,8 +371,8 @@ qualitative regimes for this dataset:
 3. Long effective range, 750 to 1000 m: spatial modeling is strongly useful.
    RMSPE, CRPS, and win rates all favor the spatial model.
 
-These cutoffs are not universal. They depend on plot spacing, support sizes,
-covariate strength, nugget variance, and prediction-unit geometry. The
+These range groupings are not universal. They depend on plot spacing, support
+sizes, covariate strength, nugget variance, and prediction-unit geometry. The
 transferable principle is that the spatial process must operate at distances
 that connect observed and prediction supports.
 
@@ -378,7 +381,7 @@ that connect observed and prediction supports.
 For applied analyses:
 
 1. Define the prediction target first. Use \(\eta\) for latent support
-   averages and \(y\) for future observed responses.
+   averages and \(y\) for observed responses that include nugget variation.
 2. Fit the nonspatial COS model as a support-aware baseline.
 3. Fit the spatial COS model when residual spatial structure is plausible and
    the number of observed supports can support estimation of \(\sigma^2\) and
@@ -393,6 +396,6 @@ For applied analyses:
 
 The central message is that the spatial COS model is most valuable when
 residual spatial dependence creates information that can be shared across
-supports. Users should align the prediction target with the scientific
-question, then evaluate whether the data show enough residual spatial process
+supports. Users should align the prediction target with the inferential
+objective, then evaluate whether the data show enough residual spatial process
 to justify spatial COS prediction.

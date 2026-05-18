@@ -377,28 +377,30 @@ The inverse transformation is
 \qquad
 \sigma^2=\exp(z_\sigma),
 \qquad
-\phi=\phi_L+(\phi_U-\phi_L)
-\frac{\exp(z_\phi)}{1+\exp(z_\phi)}.
+\phi=\phi_U-\frac{\phi_U-\phi_L}{1+\exp(z_\phi)}.
 \]
 
-The log-Jacobian included in the target is
+For the range parameter,
 
 \[
-\log |J(z)|
+\frac{d\phi}{dz_\phi}
 =
-\log\tau_B^2
-+
-\log\sigma^2
-+
-\log(\phi_U-\phi_L)
-+
-\log p_\phi
-+
-\log(1-p_\phi),
+\frac{(\phi-\phi_L)(\phi_U-\phi)}{\phi_U-\phi_L}.
 \]
 
-where \(p_\phi=(\phi-\phi_L)/(\phi_U-\phi_L)\). For nonspatial fits, the
-sampler uses only \(z_\tau=\log\tau_B^2\).
+Thus, after dropping additive constants that do not affect Metropolis
+acceptance probabilities, the transformed log target includes
+
+\[
+\log(\phi-\phi_L)
++
+\log(\phi_U-\phi)
+\]
+
+for the bounded transformation of \(\phi\). The full transformed target also
+includes the log-Jacobian terms \(\log\tau_B^2\) and \(\log\sigma^2\) for the
+log variance transformations. For nonspatial fits, the sampler uses only
+\(z_\tau=\log\tau_B^2\).
 
 The internal sampler uses a random-walk block proposal and adapts a scalar
 multiplier and covariance shape by batch. The package stores both
@@ -574,7 +576,7 @@ Useful practical checks are:
 * check that posterior `phi` is not stuck against a bound;
 * use the nonspatial fit as a support-aware baseline;
 * compare RMSPE, CRPS, coverage, and interval width for the prediction target
-  that matches the scientific question.
+  that matches the inferential objective.
 
 For applied guidance on when spatial COS should improve prediction, see the
 spatial-guidance vignette.

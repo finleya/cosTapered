@@ -122,9 +122,10 @@ proper normal prior for regression coefficients. Users supply the raster
 design matrix they want the model to use; `cosTapered` does not automatically
 add intercepts or scale covariates.
 
-Prediction functions distinguish the latent process from the observed process.
-For example, `target = "latent"` predicts \(\eta\), while
-`target = "observed"` adds the appropriate support-level nugget variation.
+Prediction functions can return either the underlying support average or the
+observed response on that support. Use `target = "latent"` for the underlying
+mean response, denoted eta in the model, and `target = "observed"` when the
+prediction should include support-level nugget variation.
 
 ## Package Source
 

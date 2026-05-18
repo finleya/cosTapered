@@ -155,6 +155,14 @@ cos_fit <- function(prep,
     stop("starting$phi must be finite and inside (phi_lower, phi_upper).")
   }
 
+  phi_to_z <- function(phi) {
+    log((phi - phi_lower) / (phi_upper - phi))
+  }
+
+  z_to_phi <- function(z) {
+    phi_upper - (phi_upper - phi_lower) / (1 + exp(z))
+  }
+
   # ------------------------------------------------
   # Collapsed log target for covariance parameters
   # ------------------------------------------------
@@ -173,8 +181,7 @@ cos_fit <- function(prep,
     if (spatial) {
       sigma_sq <- exp(theta_z["log_sigma_sq"])
 
-      p_phi <- exp(theta_z["z_phi"]) / (1 + exp(theta_z["z_phi"]))
-      phi <- phi_lower + (phi_upper - phi_lower) * p_phi
+      phi <- z_to_phi(theta_z["z_phi"])
 
       if (sigma_sq <= 0 ||
           phi <= phi_lower || phi >= phi_upper ||
@@ -220,7 +227,8 @@ cos_fit <- function(prep,
       log_prior_phi <- -log(phi_upper - phi_lower)
 
       log_jac <- log(tau_B_sq) + log(sigma_sq) +
-        log(phi_upper - phi_lower) + log(p_phi) + log(1 - p_phi)
+        log(phi - phi_lower) + log(phi_upper - phi) -
+        log(phi_upper - phi_lower)
 
       out <- log_lik + log_prior_tau_B + log_prior_sigma + log_prior_phi + log_jac
     } else {
@@ -241,12 +249,10 @@ cos_fit <- function(prep,
 
   for (ch in seq_len(n_chains)) {
     if (spatial) {
-      p_phi_start <- (starting$phi[ch] - phi_lower) / (phi_upper - phi_lower)
-
       theta_start_z <- c(
         log_tau_B_sq = log(starting$tau_B_sq[ch]),
         log_sigma_sq = log(starting$sigma_sq[ch]),
-        z_phi = log(p_phi_start / (1 - p_phi_start))
+        z_phi = phi_to_z(starting$phi[ch])
       )
     } else {
       theta_start_z <- c(
@@ -302,8 +308,7 @@ cos_fit <- function(prep,
 
   if (spatial) {
     theta_samples$sigma_sq <- exp(theta_z_samples$log_sigma_sq)
-    p_phi <- exp(theta_z_samples$z_phi) / (1 + exp(theta_z_samples$z_phi))
-    theta_samples$phi <- phi_lower + (phi_upper - phi_lower) * p_phi
+    theta_samples$phi <- z_to_phi(theta_z_samples$z_phi)
     theta_samples$eff_range <- 3 / theta_samples$phi
   } else {
     theta_samples$sigma_sq <- NA_real_
