@@ -86,6 +86,9 @@ cos_predict_fine <- function(fit,
   if (ncol(beta_samples) != ncol(X_pred)) {
     stop("ncol(X_pred) must match the number of recovered beta coefficients.")
   }
+  if (method == "sample" && as.double(n_pred) * as.double(n_pred) > .Machine$integer.max) {
+    stop("method = 'sample' requires a dense n_pred x n_pred covariance matrix; use fewer prediction cells or method = 'mean'.")
+  }
 
   # ------------------------------------------------
   # Allocate output storage
@@ -112,6 +115,8 @@ cos_predict_fine <- function(fit,
       colnames(y_samples) <- colnames(eta_samples)
     }
   }
+
+  psd_warning_given <- FALSE
 
   # ------------------------------------------------
   # Loop over retained recovery samples
@@ -161,9 +166,36 @@ cos_predict_fine <- function(fit,
         )
         C_B_inv_C_B_pred <- backsolve(R_C_B, forwardsolve(t(R_C_B), t(C_pred_B)))
         cond_cor <- C_pred - C_pred_B %*% C_B_inv_C_B_pred
-        R_cond <- chol(sigma_sq * cond_cor)
 
-        omega_pred <- omega_pred_mean + as.numeric(t(R_cond) %*% stats::rnorm(n_pred))
+        R_cond <- tryCatch(
+          chol(sigma_sq * cond_cor),
+          error = function(e) NULL
+        )
+
+        if (!is.null(R_cond)) {
+          omega_pred <- omega_pred_mean + as.numeric(t(R_cond) %*% stats::rnorm(n_pred))
+        } else {
+          cond_cor_sym <- (cond_cor + t(cond_cor)) / 2
+          eig <- eigen(cond_cor_sym, symmetric = TRUE)
+          eig_tol <- 1e-8 * max(abs(eig$values), 1)
+
+          if (min(eig$values) < -eig_tol) {
+            stop("Fine-support conditional covariance has materially negative eigenvalues.")
+          }
+
+          if (!psd_warning_given) {
+            warning(
+              "Fine-support conditional covariance is positive semidefinite, not positive definite; using eigen-based sampling. ",
+              "This can happen when method = 'sample' predicts fine cells constrained by observed-support effects.",
+              call. = FALSE
+            )
+            psd_warning_given <- TRUE
+          }
+
+          eig_values <- pmax(eig$values, 0)
+          omega_pred <- omega_pred_mean +
+            sqrt(sigma_sq) * as.numeric(eig$vectors %*% (sqrt(eig_values) * stats::rnorm(n_pred)))
+        }
       }
     } else {
       omega_pred <- rep(0, n_pred)

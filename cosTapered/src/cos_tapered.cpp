@@ -7,6 +7,7 @@
 # include <omp.h>
 #endif
 
+#include <climits>
 #include <cmath>
 #include <vector>
 
@@ -696,6 +697,10 @@ extern "C" SEXP make_C_A_tapered_dense(SEXP a_x_r,
   if(n_threads < 1)
     n_threads = 1;
 
+  R_xlen_t n_elem = static_cast<R_xlen_t>(n_a) * static_cast<R_xlen_t>(n_a);
+  if(n_elem > static_cast<R_xlen_t>(INT_MAX))
+    Rf_error("Dense fine-support covariance is too large for this implementation; use fewer prediction cells or method = 'mean'");
+
   double *a_x = REAL(a_x_r);
   double *a_y = REAL(a_y_r);
 
@@ -703,7 +708,7 @@ extern "C" SEXP make_C_A_tapered_dense(SEXP a_x_r,
   PROTECT(C_A_r = Rf_allocMatrix(REALSXP, n_a, n_a));
   double *C_A = REAL(C_A_r);
 
-  for(int i = 0; i < n_a * n_a; i++)
+  for(R_xlen_t i = 0; i < n_elem; i++)
     C_A[i] = 0.0;
 
 #ifdef _OPENMP
@@ -715,7 +720,7 @@ extern "C" SEXP make_C_A_tapered_dense(SEXP a_x_r,
 #pragma omp parallel for schedule(dynamic) if(n_threads > 1)
 #endif
   for(int i = 0; i < n_a; i++){
-    C_A[i + n_a * i] = 1.0;
+    C_A[static_cast<R_xlen_t>(i) + static_cast<R_xlen_t>(n_a) * i] = 1.0;
 
     for(int j = 0; j < i; j++){
       double dx = a_x[i] - a_x[j];
@@ -726,8 +731,8 @@ extern "C" SEXP make_C_A_tapered_dense(SEXP a_x_r,
       if(d < gamma)
         val = std::exp(-phi * d) * taper_value(d, gamma, taper_code);
 
-      C_A[i + n_a * j] = val;
-      C_A[j + n_a * i] = val;
+      C_A[static_cast<R_xlen_t>(i) + static_cast<R_xlen_t>(n_a) * j] = val;
+      C_A[static_cast<R_xlen_t>(j) + static_cast<R_xlen_t>(n_a) * i] = val;
     }
 
 #ifndef _OPENMP

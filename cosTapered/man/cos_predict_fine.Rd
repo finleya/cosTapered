@@ -32,6 +32,11 @@ By default the function reports the latent fine-scale mean target. This is the
 usual target for mapping the underlying forest condition. Use
 \code{target = "observed"} when the desired posterior predictive target is a
 noisy fine-scale response.
+
+With \code{method = "sample"}, the conditional covariance can be positive
+semidefinite when predicting fine cells constrained by observed-support
+effects. In that case the function uses eigen-based sampling for the valid
+degenerate Gaussian distribution.
 }
 \value{
 A list with class \code{"cos_prediction_fine"} containing prediction
