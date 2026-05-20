@@ -6,6 +6,8 @@ cos_predict_areal <- function(fit,
                               keep_samples = FALSE,
                               n_threads = NULL,
                               verbose = TRUE) {
+  t_start <- proc.time()
+
   # ------------------------------------------------
   # Check inputs
   # ------------------------------------------------
@@ -257,6 +259,13 @@ cos_predict_areal <- function(fit,
   # Return prediction object
   # ------------------------------------------------
 
+  dt <- proc.time() - t_start
+  timing <- c(
+    user = unname(dt[["user.self"]]),
+    system = unname(dt[["sys.self"]]),
+    elapsed = unname(dt[["elapsed"]])
+  )
+
   out <- list(
     fit = fit,
     rec_B = rec_B,
@@ -271,6 +280,7 @@ cos_predict_areal <- function(fit,
     y_samples = y_samples,
     spatial = spatial,
     target = target,
+    timing = timing,
     call = match.call()
   )
 

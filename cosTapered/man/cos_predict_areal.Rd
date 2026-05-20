@@ -38,7 +38,8 @@ observed/support response rather than the underlying latent mean.
 A list with class \code{"cos_prediction_areal"} containing areal prediction
 summaries and, optionally, posterior samples. Existing \code{eta_*} summaries
 are always returned. When \code{target = "observed"}, \code{y_*} summaries and,
-if requested, \code{y_samples} are also returned.
+if requested, \code{y_samples} are also returned. The object also contains
+\code{timing}, a named numeric vector with user, system, and elapsed seconds.
 }
 \examples{
 \dontrun{

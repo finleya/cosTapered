@@ -3,6 +3,8 @@ cos_make_areal_blocks <- function(U_sf,
                                   id_col = NULL,
                                   row_sum_tol = 1e-5,
                                   verbose = TRUE) {
+  t_start <- proc.time()
+
   # ------------------------------------------------
   # Check inputs
   # ------------------------------------------------
@@ -175,11 +177,19 @@ cos_make_areal_blocks <- function(U_sf,
   # Return areal-block object
   # ------------------------------------------------
 
+  dt <- proc.time() - t_start
+  timing <- c(
+    user = unname(dt[["user.self"]]),
+    system = unname(dt[["sys.self"]]),
+    elapsed = unname(dt[["elapsed"]])
+  )
+
   out <- list(
     U_sf = U_sf_kept,
     blocks = blocks,
     row_sums = row_sums,
     x_names = x_names,
+    timing = timing,
     call = match.call()
   )
 

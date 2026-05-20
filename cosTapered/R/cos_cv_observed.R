@@ -13,6 +13,8 @@ cos_cv_observed <- function(fit,
                             seed = NULL,
                             keep_fits = FALSE,
                             verbose = TRUE) {
+  t_start <- proc.time()
+
   # ------------------------------------------------
   # Check inputs
   # ------------------------------------------------
@@ -374,6 +376,13 @@ cos_cv_observed <- function(fit,
   }))
   rownames(overall) <- NULL
 
+  dt <- proc.time() - t_start
+  timing <- c(
+    user = unname(dt[["user.self"]]),
+    system = unname(dt[["sys.self"]]),
+    elapsed = unname(dt[["elapsed"]])
+  )
+
   out <- list(
     summary = overall,
     fold_summary = fold_summary,
@@ -385,6 +394,7 @@ cos_cv_observed <- function(fit,
     fit_args = fit_args_user,
     recover_args = recover_args_user,
     fits = fits,
+    timing = timing,
     call = match.call()
   )
 

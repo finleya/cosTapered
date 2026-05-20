@@ -7,6 +7,8 @@ cos_predict_fine <- function(fit,
                              keep_samples = FALSE,
                              n_threads = NULL,
                              verbose = TRUE) {
+  t_start <- proc.time()
+
   # ------------------------------------------------
   # Check inputs
   # ------------------------------------------------
@@ -276,6 +278,13 @@ cos_predict_fine <- function(fit,
   # Return prediction object
   # ------------------------------------------------
 
+  dt <- proc.time() - t_start
+  timing <- c(
+    user = unname(dt[["user.self"]]),
+    system = unname(dt[["sys.self"]]),
+    elapsed = unname(dt[["elapsed"]])
+  )
+
   out <- list(
     fit = fit,
     rec_B = rec_B,
@@ -291,6 +300,7 @@ cos_predict_fine <- function(fit,
     eta_samples = eta_samples,
     y_samples = y_samples,
     spatial = spatial,
+    timing = timing,
     call = match.call()
   )
 

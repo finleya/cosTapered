@@ -36,7 +36,8 @@ precomputations needed by \code{\link{cos_fit}}.
 \value{
 A list with class \code{"cos_prep"} containing observed supports,
 fine-support covariates, \code{H_BA}, \code{D_h}, compressed support
-weights, optional precomputed covariance pairs, and model settings.
+weights, optional precomputed covariance pairs, model settings, and
+\code{timing}, a named numeric vector with user, system, and elapsed seconds.
 }
 \references{
 Zhang, L., Finley, A. O., Nothdurft, A., and Banerjee, S. (2024).

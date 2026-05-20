@@ -5,6 +5,8 @@ cos_recover_B <- function(fit,
                           seed = NULL,
                           n_threads = NULL,
                           verbose = TRUE) {
+  t_start <- proc.time()
+
   # ------------------------------------------------
   # Check inputs
   # ------------------------------------------------
@@ -198,6 +200,13 @@ cos_recover_B <- function(fit,
   # Return recovery object
   # ------------------------------------------------
 
+  dt <- proc.time() - t_start
+  timing <- c(
+    user = unname(dt[["user.self"]]),
+    system = unname(dt[["sys.self"]]),
+    elapsed = unname(dt[["elapsed"]])
+  )
+
   out <- list(
     fit = fit,
     theta_samples = theta_keep,
@@ -207,6 +216,7 @@ cos_recover_B <- function(fit,
     beta_mean_samples = beta_mean_samples,
     omega_B_mean_samples = omega_B_mean_samples,
     spatial = spatial,
+    timing = timing,
     call = match.call()
   )
 

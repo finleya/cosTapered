@@ -22,7 +22,8 @@ Gaussian full conditional distribution.
 }
 \value{
 A list with class \code{"cos_recovery_B"} containing posterior samples of
-\code{beta}, \code{omega_B}, and \code{eta_B}.
+\code{beta}, \code{omega_B}, \code{eta_B}, and \code{timing}, a named numeric
+vector with user, system, and elapsed seconds.
 }
 \examples{
 \dontrun{

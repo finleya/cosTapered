@@ -35,6 +35,9 @@ test_that("non-spatial workflow and S3 methods run on example data", {
     verbose = FALSE
   )
   expect_s3_class(prep, "cos_prep")
+  expect_named(prep$timing, c("user", "system", "elapsed"))
+  expect_true(all(is.finite(prep$timing)))
+  expect_true(prep$timing[["elapsed"]] >= 0)
   expect_s3_class(summary(prep), "summary.cos_prep")
 
   priors <- cos_default_priors(
@@ -56,6 +59,9 @@ test_that("non-spatial workflow and S3 methods run on example data", {
     verbose = FALSE
   )
   expect_s3_class(fit, "cos_fit")
+  expect_named(fit$timing, c("user", "system", "elapsed"))
+  expect_true(all(is.finite(fit$timing)))
+  expect_true(fit$timing[["elapsed"]] >= 0)
   expect_s3_class(summary(fit), "summary.cos_fit")
   expect_s3_class(plot(fit), "ggplot")
   expect_true(is.matrix(cos_summary_theta(fit)))
@@ -69,6 +75,9 @@ test_that("non-spatial workflow and S3 methods run on example data", {
     verbose = FALSE
   )
   expect_s3_class(rec, "cos_recovery_B")
+  expect_named(rec$timing, c("user", "system", "elapsed"))
+  expect_true(all(is.finite(rec$timing)))
+  expect_true(rec$timing[["elapsed"]] >= 0)
   expect_s3_class(summary(rec), "summary.cos_recovery_B")
 
   pred <- cos_predict_fine(
@@ -77,6 +86,9 @@ test_that("non-spatial workflow and S3 methods run on example data", {
     verbose = FALSE
   )
   expect_s3_class(pred, "cos_prediction_fine")
+  expect_named(pred$timing, c("user", "system", "elapsed"))
+  expect_true(all(is.finite(pred$timing)))
+  expect_true(pred$timing[["elapsed"]] >= 0)
   expect_s3_class(summary(pred), "summary.cos_prediction_fine")
   expect_equal(nrow(pred$summary), nrow(prep$X))
 
@@ -100,6 +112,9 @@ test_that("non-spatial workflow and S3 methods run on example data", {
     id_col = ".test_id",
     verbose = FALSE
   )
+  expect_named(U_blocks$timing, c("user", "system", "elapsed"))
+  expect_true(all(is.finite(U_blocks$timing)))
+  expect_true(U_blocks$timing[["elapsed"]] >= 0)
   pred_U <- cos_predict_areal(
     fit = fit,
     rec_B = rec,
@@ -109,6 +124,9 @@ test_that("non-spatial workflow and S3 methods run on example data", {
     verbose = FALSE
   )
   expect_s3_class(pred_U, "cos_prediction_areal")
+  expect_named(pred_U$timing, c("user", "system", "elapsed"))
+  expect_true(all(is.finite(pred_U$timing)))
+  expect_true(pred_U$timing[["elapsed"]] >= 0)
   expect_true(all(c("y_mean", "y_sd", "y_q025", "y_q975") %in% names(pred_U$summary)))
   expect_equal(dim(pred_U$y_samples), dim(pred_U$eta_samples))
   expect_equal(ncol(pred_U$y_samples), length(U_blocks$blocks))

@@ -8,6 +8,8 @@ cos_prepare <- function(X_rast,
                         n_threads = 1L,
                         row_sum_tol = 1e-5,
                         verbose = TRUE) {
+  t_start <- proc.time()
+
   # ------------------------------------------------
   # Check inputs
   # ------------------------------------------------
@@ -248,6 +250,13 @@ cos_prepare <- function(X_rast,
   # Return prep object
   # ------------------------------------------------
 
+  dt <- proc.time() - t_start
+  timing <- c(
+    user = unname(dt[["user.self"]]),
+    system = unname(dt[["sys.self"]]),
+    elapsed = unname(dt[["elapsed"]])
+  )
+
   out <- list(
     B_sf = B_sf,
     y_B = y_B,
@@ -265,6 +274,7 @@ cos_prepare <- function(X_rast,
     spatial = spatial,
     taper_code = taper_code,
     n_threads = n_threads,
+    timing = timing,
     call = match.call()
   )
 

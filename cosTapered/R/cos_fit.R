@@ -10,6 +10,8 @@ cos_fit <- function(prep,
                     report = 100,
                     n_threads = NULL,
                     verbose = TRUE) {
+  t_start <- proc.time()
+
   # ------------------------------------------------
   # Check inputs
   # ------------------------------------------------
@@ -327,6 +329,13 @@ cos_fit <- function(prep,
   # Return fit object
   # ------------------------------------------------
 
+  dt <- proc.time() - t_start
+  timing <- c(
+    user = unname(dt[["user.self"]]),
+    system = unname(dt[["sys.self"]]),
+    elapsed = unname(dt[["elapsed"]])
+  )
+
   out <- list(
     prep = prep,
     priors = priors,
@@ -344,6 +353,7 @@ cos_fit <- function(prep,
     ),
     spatial = spatial,
     d_h_bar = d_h_bar,
+    timing = timing,
     call = match.call()
   )
 

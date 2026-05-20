@@ -19,7 +19,9 @@ Computes fine-cell weights, covariate averages, coordinates, and metadata
 for each areal prediction polygon.
 }
 \value{
-A list with class \code{"cos_areal_blocks"}.
+A list with class \code{"cos_areal_blocks"} containing areal support blocks
+and \code{timing}, a named numeric vector with user, system, and elapsed
+seconds.
 }
 \examples{
 \dontrun{

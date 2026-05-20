@@ -82,6 +82,8 @@ A list with class \code{"cos_cv_observed"} containing:
     and coverage indicators, by target.
   \item \code{fold_id}: fold assignments.
   \item \code{fits}: optional fitted fold models when \code{keep_fits = TRUE}.
+  \item \code{timing}: named numeric vector with user, system, and elapsed
+    seconds.
 }
 }
 \examples{

@@ -64,6 +64,9 @@ test_that("observed-support CV returns scores", {
   )
 
   expect_s3_class(cv, "cos_cv_observed")
+  expect_named(cv$timing, c("user", "system", "elapsed"))
+  expect_true(all(is.finite(cv$timing)))
+  expect_true(cv$timing[["elapsed"]] >= 0)
   expect_s3_class(summary(cv), "summary.cos_cv_observed")
   expect_equal(nrow(cv$predictions), nrow(B_sf))
   expect_true(all(c("RMSPE", "CRPS", "coverage_95") %in% names(cv$summary)))

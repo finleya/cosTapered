@@ -48,9 +48,11 @@ objects fit the COS submodel without spatial random effects and sample only
 from \code{tau_B_sq / mean(diag(D_h))}.
 }
 \value{
-\code{cos_fit()} returns a list with class \code{"cos_fit"}. The convenience
-function \code{cos_summary_theta()} returns a parameter summary table.
-\code{cos_plot_trace()} returns a \pkg{ggplot2} object.
+\code{cos_fit()} returns a list with class \code{"cos_fit"} containing
+posterior samples and \code{timing}, a named numeric vector with user,
+system, and elapsed seconds. The convenience function
+\code{cos_summary_theta()} returns a parameter summary table. \code{cos_plot_trace()}
+returns a \pkg{ggplot2} object.
 }
 \examples{
 \dontrun{
