@@ -7,7 +7,7 @@
 cos_fit(prep, priors, n_chains = 1L, starting = NULL,
   tuning = c(log_tau_B_sq = 1, log_sigma_sq = 1, z_phi = 1),
   n_batch = 1000, batch_length = 25, accept_rate = 0.234,
-  seed = NULL, report = 100, verbose = TRUE)
+  seed = NULL, report = 100, n_threads = NULL, verbose = TRUE)
 
 cos_summary_theta(fit, burn_in = 1,
   pars = c("tau_B_sq", "tau_sq", "sigma_sq", "phi", "eff_range"),
@@ -31,6 +31,8 @@ Spatial fits use \code{log_tau_B_sq}, \code{log_sigma_sq}, and
 \item{accept_rate}{Target acceptance rate.}
 \item{seed}{Optional random seed.}
 \item{report}{Batch reporting interval.}
+\item{n_threads}{Optional number of OpenMP threads used by compiled
+covariance code. If \code{NULL}, uses \code{prep$n_threads}.}
 \item{verbose}{Logical; if \code{TRUE}, print sampler progress.}
 \item{fit}{A \code{"cos_fit"} object.}
 \item{burn_in}{First retained iteration index.}

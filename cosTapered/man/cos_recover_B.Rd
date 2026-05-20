@@ -3,7 +3,7 @@
 \title{Recover Observed-Support Latent Quantities}
 \usage{
 cos_recover_B(fit, burn_in = 1, thin = 1L, n_samples = NULL,
-  seed = NULL, verbose = TRUE)
+  seed = NULL, n_threads = NULL, verbose = TRUE)
 }
 \arguments{
 \item{fit}{A \code{"cos_fit"} object from \code{\link{cos_fit}}.}
@@ -11,6 +11,8 @@ cos_recover_B(fit, burn_in = 1, thin = 1L, n_samples = NULL,
 \item{thin}{Within-chain thinning interval.}
 \item{n_samples}{Optional maximum number of retained posterior samples.}
 \item{seed}{Optional random seed used when subsampling retained draws.}
+\item{n_threads}{Optional number of OpenMP threads used by compiled
+covariance code. If \code{NULL}, uses \code{fit$prep$n_threads}.}
 \item{verbose}{Logical; if \code{TRUE}, print progress messages.}
 }
 \description{

@@ -8,6 +8,7 @@ cos_fit <- function(prep,
                     accept_rate = 0.234,
                     seed = NULL,
                     report = 100,
+                    n_threads = NULL,
                     verbose = TRUE) {
   # ------------------------------------------------
   # Check inputs
@@ -23,6 +24,12 @@ cos_fit <- function(prep,
   n_chains <- as.integer(n_chains)
   n_batch <- as.integer(n_batch)
   batch_length <- as.integer(batch_length)
+  if (is.null(n_threads)) {
+    n_threads <- prep$n_threads
+  } else {
+    n_threads <- as.integer(n_threads)
+    if (!is.finite(n_threads) || n_threads < 1L) n_threads <- 1L
+  }
 
   if (!is.finite(n_chains) || n_chains < 1L) stop("n_chains must be positive.")
   if (!is.finite(n_batch) || n_batch < 1L) stop("n_batch must be positive.")
@@ -58,7 +65,6 @@ cos_fit <- function(prep,
   D_h <- as.matrix(prep$D_h)
   C_B_pairs <- prep$C_B_pairs
   n_b <- length(y_B)
-  n_threads <- prep$n_threads
 
   mu_beta <- as.numeric(priors$beta$mu)
   names(mu_beta) <- colnames(X_B)

@@ -3,6 +3,7 @@ cos_recover_B <- function(fit,
                           thin = 1L,
                           n_samples = NULL,
                           seed = NULL,
+                          n_threads = NULL,
                           verbose = TRUE) {
   # ------------------------------------------------
   # Check inputs
@@ -42,7 +43,12 @@ cos_recover_B <- function(fit,
   X_B <- as.matrix(prep$X_B)
   D_h <- as.matrix(prep$D_h)
   C_B_pairs <- prep$C_B_pairs
-  n_threads <- prep$n_threads
+  if (is.null(n_threads)) {
+    n_threads <- prep$n_threads
+  } else {
+    n_threads <- as.integer(n_threads)
+    if (!is.finite(n_threads) || n_threads < 1L) n_threads <- 1L
+  }
 
   theta_samples <- as.data.frame(fit$theta_samples)
 

@@ -5,6 +5,7 @@ cos_predict_fine <- function(fit,
                              method = c("mean", "sample"),
                              target = c("latent", "observed"),
                              keep_samples = FALSE,
+                             n_threads = NULL,
                              verbose = TRUE) {
   # ------------------------------------------------
   # Check inputs
@@ -71,7 +72,12 @@ cos_predict_fine <- function(fit,
   H_BA_comp <- fit$prep$H_BA_comp
   gamma <- fit$prep$gamma
   taper_code <- fit$prep$taper_code
-  n_threads <- fit$prep$n_threads
+  if (is.null(n_threads)) {
+    n_threads <- fit$prep$n_threads
+  } else {
+    n_threads <- as.integer(n_threads)
+    if (!is.finite(n_threads) || n_threads < 1L) n_threads <- 1L
+  }
 
   n_save <- nrow(beta_samples)
   n_pred <- nrow(X_pred)

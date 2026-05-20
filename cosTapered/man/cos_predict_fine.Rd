@@ -4,7 +4,7 @@
 \usage{
 cos_predict_fine(fit, rec_B, pred_coords = NULL, X_pred = NULL,
   method = c("mean", "sample"), target = c("latent", "observed"),
-  keep_samples = FALSE, verbose = TRUE)
+  keep_samples = FALSE, n_threads = NULL, verbose = TRUE)
 }
 \arguments{
 \item{fit}{A \code{"cos_fit"} object.}
@@ -19,6 +19,8 @@ matching the fitted covariates.}
 means \code{eta_A = X_A beta + omega_A}. \code{"observed"} also adds
 independent fine-scale nugget draws with variance \code{tau_sq}.}
 \item{keep_samples}{Logical; if \code{TRUE}, store posterior sample matrices.}
+\item{n_threads}{Optional number of OpenMP threads used by compiled
+covariance code. If \code{NULL}, uses \code{fit$prep$n_threads}.}
 \item{verbose}{Logical; if \code{TRUE}, print progress messages.}
 }
 \description{

@@ -3,7 +3,8 @@
 \title{Predict Areal-Support Latent Quantities}
 \usage{
 cos_predict_areal(fit, rec_B, U_blocks, method = c("mean", "sample"),
-  target = c("latent", "observed"), keep_samples = FALSE, verbose = TRUE)
+  target = c("latent", "observed"), keep_samples = FALSE,
+  n_threads = NULL, verbose = TRUE)
 }
 \arguments{
 \item{fit}{A \code{"cos_fit"} object.}
@@ -17,6 +18,8 @@ Gaussian effects for each areal unit.}
 support-level nugget draws with variance \code{tau_sq * sum(h^2)} for each
 prediction support.}
 \item{keep_samples}{Logical; if \code{TRUE}, store posterior sample matrices.}
+\item{n_threads}{Optional number of OpenMP threads used by compiled
+covariance code. If \code{NULL}, uses \code{fit$prep$n_threads}.}
 \item{verbose}{Logical; if \code{TRUE}, print progress messages.}
 }
 \description{
