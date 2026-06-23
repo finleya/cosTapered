@@ -13,6 +13,9 @@ print.cos_prep <- function(x, ...) {
   if (spatial) {
     cat("  gamma:               ", x$gamma, "\n", sep = "")
   }
+  if (!is.null(x$missing)) {
+    cat("  missing:             ", x$missing, "\n", sep = "")
+  }
   cat("Use summary() for support-weight diagnostics.\n")
 
   invisible(x)
@@ -42,12 +45,15 @@ print.cos_priors <- function(x, ...) {
 print.cos_fit <- function(x, ...) {
   spatial <- isTRUE(x$spatial)
   if (is.null(x$spatial)) spatial <- TRUE
+  family <- x$family
+  if (is.null(family)) family <- "gaussian"
 
   if (spatial) {
     cat("Tapered COS fit\n")
   } else {
     cat("Non-spatial COS fit\n")
   }
+  cat("  family:       ", family, "\n", sep = "")
   cat("  chains:       ", x$sampler$n_chains, "\n", sep = "")
   cat("  batches:      ", x$sampler$n_batch, "\n", sep = "")
   cat("  batch length: ", x$sampler$batch_length, "\n", sep = "")
@@ -83,7 +89,7 @@ print.cos_prediction_fine <- function(x, ...) {
   } else {
     cat("Non-spatial COS fine prediction\n")
   }
-  cat("  method:          ", x$method, "\n", sep = "")
+  cat("  spatial uncertainty: ", x$spatial_uncertainty, "\n", sep = "")
   cat("  target:          ", x$target, "\n", sep = "")
   cat("  prediction cells:", x$n_pred, "\n", sep = "")
   cat("  posterior draws: ", x$n_samples, "\n", sep = "")
@@ -97,6 +103,9 @@ print.cos_areal_blocks <- function(x, ...) {
   cat("Tapered COS areal prediction blocks\n")
   cat("  prediction supports U: ", length(x$blocks), "\n", sep = "")
   cat("  covariates:            ", paste(x$x_names, collapse = ", "), "\n", sep = "")
+  if (!is.null(x$missing)) {
+    cat("  missing:              ", x$missing, "\n", sep = "")
+  }
   cat("Use summary() for support-weight diagnostics.\n")
 
   invisible(x)
@@ -111,7 +120,7 @@ print.cos_prediction_areal <- function(x, ...) {
   } else {
     cat("Non-spatial COS areal prediction\n")
   }
-  cat("  method:          ", x$method, "\n", sep = "")
+  cat("  spatial uncertainty: ", x$spatial_uncertainty, "\n", sep = "")
   cat("  target:          ", x$target, "\n", sep = "")
   cat("  prediction units:", x$n_U, "\n", sep = "")
   cat("  posterior draws: ", x$n_samples, "\n", sep = "")

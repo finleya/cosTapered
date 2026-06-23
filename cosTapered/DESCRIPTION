@@ -1,22 +1,26 @@
 Package: cosTapered
 Type: Package
-Title: Tapered Change-of-Support Gaussian Process Model
-Version: 0.0.1
+Title: Tapered Change-of-Support Spatial Response Models
+Version: 0.0.2
 Authors@R: c(
     person("Andrew O.", "Finley", role = c("aut", "cre"), email = "finleya@msu.edu"),
     person("Lu", "Zhang", role = "aut"),
     person("Arne", "Nothdurft", role = "aut"),
-    person("Sudipto", "Banerjee", role = "aut")
+    person("Sudipto", "Banerjee", role = "aut"),
+    person("Arthur", "Spitta", role = "ctb", email = "arthur.spitta@students.boku.ac.at")
     )
-Description: Lightweight implementation of the Bayesian change-of-support
-    Gaussian process model for areal observations and fine-support raster
-    covariates described by Zhang et al. (2024)
-    <doi:10.1016/j.jag.2024.104224>.
+Description: Lightweight implementation of Bayesian change-of-support
+    spatial models for polygon-support observations, fine-support raster
+    covariates, and areal prediction targets. The Gaussian response model
+    follows Zhang et al. (2024) <doi:10.1016/j.jag.2024.104224>, with
+    experimental Polya-Gamma paths for binomial and fixed-size
+    negative-binomial responses.
 License: GPL-3
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
-Imports: sf, raster, exactextractr, Matrix, methods
-Suggests: ggplot2, knitr, rmarkdown, testthat (>= 3.0.0)
-VignetteBuilder: knitr
+Imports: sf, raster, exactextractr, Matrix, methods, BayesLogit (>= 2.4)
+LinkingTo: BayesLogit (>= 2.4)
+Suggests: ggplot2, knitr, quarto, rmarkdown, testthat (>= 3.0.0)
+VignetteBuilder: knitr, quarto
 Config/testthat/edition: 3
 NeedsCompilation: yes

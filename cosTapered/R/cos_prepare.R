@@ -6,6 +6,7 @@ cos_prepare <- function(X_rast,
                         spatial = TRUE,
                         taper_code = 1L,
                         n_threads = 1L,
+                        missing = c("error", "drop", "renormalize"),
                         row_sum_tol = 1e-5,
                         verbose = TRUE) {
   t_start <- proc.time()
@@ -30,7 +31,8 @@ cos_prepare <- function(X_rast,
     suppressWarnings(sf::st_crs(B_sf) <- sf::st_crs(raster::crs(X_rast)))
   }
   spatial <- isTRUE(spatial)
-  if (spatial && (missing(gamma) || length(gamma) != 1 || !is.finite(gamma) || gamma <= 0)) {
+  missing <- match.arg(missing)
+  if (spatial && (base::missing(gamma) || length(gamma) != 1 || !is.finite(gamma) || gamma <= 0)) {
     stop("gamma must be supplied as a positive taper distance in the CRS units.")
   }
   if (!spatial) {
@@ -175,6 +177,26 @@ cos_prepare <- function(X_rast,
     stop("No complete fine-support covariate cells remain after filtering.")
   }
 
+  kept_row_sums <- stats::aggregate(h ~ B_id, data = trip, FUN = sum)
+  kept_row_sum <- numeric(n_b)
+  kept_row_sum[kept_row_sums$B_id] <- kept_row_sums$h
+  low_rows <- which(kept_row_sum < 1 - row_sum_tol)
+  if (length(low_rows) > 0L && missing == "error") {
+    stop(
+      "Incomplete X_rast values leave observed support weights below 1 for ",
+      length(low_rows), " observed support(s). ",
+      "Use missing = 'drop' to keep the covered-cell weights or missing = 'renormalize' ",
+      "to average over covered cells only."
+    )
+  }
+  if (missing == "renormalize") {
+    row_lookup <- kept_row_sum[trip$B_id]
+    if (any(!is.finite(row_lookup) | row_lookup <= 0)) {
+      stop("Cannot renormalize support weights because at least one observed support has no complete raster cells.")
+    }
+    trip$h <- trip$h / row_lookup
+  }
+
   A_df$A_id <- seq_len(nrow(A_df))
   trip <- merge(trip, A_df[, c("cell_id", "A_id")], by = "cell_id", all.x = TRUE)
   trip <- trip[order(trip$B_id, trip$A_id), , drop = FALSE]
@@ -273,6 +295,7 @@ cos_prepare <- function(X_rast,
     gamma = gamma,
     spatial = spatial,
     taper_code = taper_code,
+    missing = missing,
     n_threads = n_threads,
     timing = timing,
     call = match.call()

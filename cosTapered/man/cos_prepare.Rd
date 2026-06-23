@@ -4,7 +4,8 @@
 \usage{
 cos_prepare(X_rast, B_sf, response_col = NULL, y_B = NULL, gamma,
   spatial = TRUE, taper_code = 1L, n_threads = 1L,
-  row_sum_tol = 1e-5, verbose = TRUE)
+  missing = c("error", "drop", "renormalize"), row_sum_tol = 1e-5,
+  verbose = TRUE)
 }
 \arguments{
 \item{X_rast}{A \pkg{raster} \code{RasterLayer}, \code{RasterStack}, or
@@ -23,6 +24,11 @@ submodel without covariance-pair precomputation.}
 \item{taper_code}{Integer taper code: \code{1L} for Wendland or \code{2L}
 for spherical.}
 \item{n_threads}{Number of OpenMP threads used by compiled covariance code.}
+\item{missing}{How to handle incomplete raster covariate cells that overlap
+observed supports. \code{"error"} stops if retained support weights fall below
+one. \code{"drop"} keeps the covered-cell weights without rescaling.
+\code{"renormalize"} rescales retained weights to sum to one within each
+observed support.}
 \item{row_sum_tol}{Tolerance used when warning about support-weight row
 sums.}
 \item{verbose}{Logical; if \code{TRUE}, print progress messages from exact
@@ -32,6 +38,14 @@ extraction.}
 Constructs the observed-support design matrix, support-weight matrix,
 nugget matrix, and, when \code{spatial = TRUE}, tapered covariance
 precomputations needed by \code{\link{cos_fit}}.
+}
+\details{
+By default, incomplete raster covariate cells are treated as an error when
+they would change the observed-support averaging weights. This protects the
+model target: support averages are defined over the supplied polygons, not
+only over the subset of cells with complete covariates. Use
+\code{missing = "drop"} or \code{missing = "renormalize"} only when that
+behavior matches the intended analysis.
 }
 \value{
 A list with class \code{"cos_prep"} containing observed supports,

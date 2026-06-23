@@ -2,13 +2,15 @@
 \alias{cosTapered-package}
 \alias{cosTapered}
 \docType{package}
-\title{Tapered Change-of-Support Gaussian Process Model}
+\title{Tapered Change-of-Support Spatial Models}
 \description{
 The \pkg{cosTapered} package implements a Bayesian change-of-support
-Gaussian process model for areal observations, fine-support raster
-covariates, and areal prediction units. The spatial covariance is a
-tapered exponential covariance. Observed-support and prediction-support
-weights are computed from polygon and raster intersections.
+spatial model for areal observations, fine-support raster covariates, and
+areal prediction units. The main Gaussian response model uses a tapered
+exponential covariance. Experimental Polya-Gamma response paths are available
+for binomial and fixed-size negative-binomial observed-support responses.
+Observed-support and prediction-support weights are computed from polygon and
+raster intersections.
 }
 \details{
 The main workflow is:
@@ -23,6 +25,10 @@ The main workflow is:
 }
 Users provide covariate rasters as prepared inputs. The package does not
 add intercepts, scale covariates, or buffer points automatically.
+
+The package vignettes provide the main workflow, model details, and spatial
+guidance. A model and software details document with compact model notation
+and posterior calculations is installed as \file{doc/cosTapered.pdf}.
 }
 \author{
 Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee.

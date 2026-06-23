@@ -16,6 +16,9 @@ cosTapered/src/*.so
 cosTapered/src/*.dll
 cosTapered/src/*.dylib
 
+cosTapered/vignettes/*.html
+cosTapered/vignettes/*_files/
+
 *.log
 *.aux
 *.out

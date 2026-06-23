@@ -1,15 +1,29 @@
 ---
 title: "Getting Started with cosTapered"
+subtitle: "Gaussian change-of-support fitting, fine-grid prediction, and areal summaries"
 author: "Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee"
-date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+format:
+  html:
+    toc: true
+    toc-location: left
+    toc-expand: true
+    toc-depth: 2
+    number-sections: true
+    code-fold: show
+    code-overflow: wrap
+    html-math-method: katex
+    css: cosTapered-vignette.css
+execute:
+  warning: false
+  message: false
 vignette: >
   %\VignetteIndexEntry{Getting Started with cosTapered}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
+```{r setup}
+#| include: false
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -112,6 +126,22 @@ ggplot() +
   theme_bw()
 ```
 
+The observed plot responses are measured on the plot polygons. The COS model
+connects these plot-support responses to the raster covariates through
+support averaging.
+
+```{r response-plot}
+ggplot() +
+  geom_sf(data = forest_sf, fill = "grey95", color = "grey40", linewidth = 0.3) +
+  geom_sf(data = U_sf, fill = NA, color = "white", linewidth = 0.25) +
+  geom_sf(data = B_sf, aes(fill = y_B), color = "grey15", linewidth = 0.25) +
+  scale_fill_viridis_c(option = "magma") +
+  coord_sf(expand = FALSE) +
+  labs(title = "Observed Gaussian plot-support responses",
+       fill = "y_B", x = NULL, y = NULL) +
+  theme_bw()
+```
+
 ## Prepare observed supports
 
 `cos_prepare()` computes area weights linking observed polygons to raster
@@ -120,6 +150,12 @@ the distance/taper information needed for spatial fitting.
 
 This is the first model-building step after the raster design and observed
 polygons have been assembled.
+
+By default, `cos_prepare()` stops if incomplete raster covariate cells would
+leave an observed-support row sum materially below one. This protects the
+support-average target. Use `missing = "drop"` or
+`missing = "renormalize"` only when the intended analysis should use covered
+cells rather than the full observed support.
 
 ```{r prepare, eval = FALSE}
 prep <- cos_prepare(
@@ -207,23 +243,45 @@ rec_B <- cos_recover_B(
 summary(rec_B, include_eta_B = TRUE)
 ```
 
-## Predict fine or areal supports
+## Predict the fine grid
 
 Fine-support prediction returns the latent raster-scale response by default.
+If `pred_coords` and `X_pred` are omitted, `cos_predict_fine()` predicts on
+the original fine support used by `cos_prepare()`. In this example that is the
+native 3 m by 3 m raster grid.
+
+For routine pixel-wise maps with uncertainty, use
+`spatial_uncertainty = "marginal"`. This uses the faster marginal prediction
+backend: each fine cell receives its own one-dimensional conditional Gaussian
+draw for each retained posterior sample, without forming a dense joint
+covariance matrix across all cells. The resulting cell means, posterior
+standard deviations, and intervals are appropriate when cells are interpreted
+one at a time. Use `spatial_uncertainty = "joint"` only when a downstream
+summary combines cells and requires cross-cell covariance.
 
 ```{r predict-fine, eval = FALSE}
 pred_fine <- cos_predict_fine(
   fit = fit,
   rec_B = rec_B,
-  method = "mean",
+  spatial_uncertainty = "marginal",
+  keep_samples = FALSE,
+  n_threads = 2,
   verbose = FALSE
 )
 
 summary(pred_fine)
 ```
 
+The returned summary contains one row per predicted fine cell, including the
+cell coordinates, posterior mean, posterior standard deviation, and interval
+summaries for the requested target.
+
+## Predict areal supports
+
 Areal prediction first builds prediction-support blocks and then predicts
-support averages.
+support averages. `cos_make_areal_blocks()` uses the same missing-covariate
+policy as `cos_prepare()`. For per-stand or per-polygon estimates with valid
+one-unit-at-a-time uncertainty, use `spatial_uncertainty = "marginal"`.
 
 ```{r predict-areal, eval = FALSE}
 U_blocks <- cos_make_areal_blocks(
@@ -237,7 +295,9 @@ pred_U <- cos_predict_areal(
   fit = fit,
   rec_B = rec_B,
   U_blocks = U_blocks,
-  method = "mean",
+  spatial_uncertainty = "marginal",
+  keep_samples = FALSE,
+  n_threads = 2,
   verbose = TRUE
 )
 
@@ -246,7 +306,10 @@ summary(pred_U)
 
 Prediction functions default to `target = "latent"`. Use
 `target = "observed"` when the prediction should include support-level nugget
-variation on the requested support.
+variation on the requested support. For areal prediction,
+`spatial_uncertainty = "marginal"` returns marginal samples for each
+prediction unit, not joint samples across units; do not use those samples for
+totals, contrasts, or rankings that require cross-unit covariance.
 
 ## Cross validation
 

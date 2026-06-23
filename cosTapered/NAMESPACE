@@ -1,4 +1,5 @@
 useDynLib(cosTapered, .registration = TRUE)
+import(BayesLogit)
 export(cos_prepare)
 export(cos_default_priors)
 export(cos_fit)

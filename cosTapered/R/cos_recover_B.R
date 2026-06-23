@@ -61,9 +61,6 @@ cos_recover_B <- function(fit,
   n_b <- length(y_B)
   p <- ncol(X_B)
 
-  if (!all(c("tau_sq", "sigma_sq", "phi") %in% names(theta_samples))) {
-    stop("fit$theta_samples must contain tau_sq, sigma_sq, and phi.")
-  }
   if (length(mu_beta) != p || nrow(V_beta) != p || ncol(V_beta) != p) {
     stop("beta prior dimensions are not compatible with prep$X_B.")
   }
@@ -97,6 +94,61 @@ cos_recover_B <- function(fit,
   }
 
   n_save <- nrow(theta_keep)
+
+  if (fit$family %in% c("binomial", "negative_binomial")) {
+    beta_all <- as.data.frame(fit$beta_samples)
+    omega_all <- as.data.frame(fit$omega_B_samples)
+    eta_all <- as.data.frame(fit$eta_B_samples)
+
+    key_keep <- paste(theta_keep$chain, theta_keep$iter, sep = ":")
+    key_beta <- paste(beta_all$chain, beta_all$iter, sep = ":")
+    key_omega <- paste(omega_all$chain, omega_all$iter, sep = ":")
+    key_eta <- paste(eta_all$chain, eta_all$iter, sep = ":")
+
+    beta_ind <- match(key_keep, key_beta)
+    omega_ind <- match(key_keep, key_omega)
+    eta_ind <- match(key_keep, key_eta)
+
+    if (anyNA(beta_ind) || anyNA(omega_ind) || anyNA(eta_ind)) {
+      stop("Could not match Polya-Gamma fit state samples to retained theta samples.")
+    }
+
+    beta_samples <- as.matrix(beta_all[beta_ind, colnames(X_B), drop = FALSE])
+    omega_cols <- paste0("B_", seq_len(n_b))
+    omega_B_samples <- as.matrix(omega_all[omega_ind, omega_cols, drop = FALSE])
+    eta_B_samples <- as.matrix(eta_all[eta_ind, omega_cols, drop = FALSE])
+
+    colnames(beta_samples) <- colnames(X_B)
+    colnames(omega_B_samples) <- omega_cols
+    colnames(eta_B_samples) <- omega_cols
+
+    dt <- proc.time() - t_start
+    timing <- c(
+      user = unname(dt[["user.self"]]),
+      system = unname(dt[["sys.self"]]),
+      elapsed = unname(dt[["elapsed"]])
+    )
+
+    out <- list(
+      fit = fit,
+      theta_samples = theta_keep,
+      beta_samples = beta_samples,
+      omega_B_samples = omega_B_samples,
+      eta_B_samples = eta_B_samples,
+      beta_mean_samples = beta_samples,
+      omega_B_mean_samples = omega_B_samples,
+      spatial = spatial,
+      timing = timing,
+      call = match.call()
+    )
+
+    class(out) <- "cos_recovery_B"
+    return(out)
+  }
+
+  if (!all(c("tau_sq", "sigma_sq", "phi") %in% names(theta_samples))) {
+    stop("fit$theta_samples must contain tau_sq, sigma_sq, and phi.")
+  }
 
   # ------------------------------------------------
   # Fixed matrices for observed-support recovery

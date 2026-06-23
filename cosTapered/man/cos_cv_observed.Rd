@@ -4,9 +4,9 @@
 \usage{
 cos_cv_observed(fit, X_rast, B_sf = NULL, response_col = NULL,
   y_B = NULL, target = "observed", latent_col = NULL, k = 10L,
-  fold_id = NULL, row_sum_tol = 1e-5, fit_args = list(),
-  recover_args = list(), seed = NULL, keep_fits = FALSE,
-  verbose = TRUE)
+  fold_id = NULL, missing = c("error", "drop", "renormalize"),
+  row_sum_tol = 1e-5, fit_args = list(), recover_args = list(),
+  seed = NULL, keep_fits = FALSE, verbose = TRUE)
 }
 \arguments{
 \item{fit}{A \code{"cos_fit"} object. The fitted object is used as the model
@@ -21,7 +21,7 @@ polygons. If \code{NULL}, \code{fit$prep$B_sf} is used.}
 of \code{response_col}. If neither \code{y_B} nor \code{response_col} is
 supplied, \code{fit$prep$y_B} is used.}
 \item{target}{Prediction target or targets to score. \code{"observed"} scores
-posterior predictive observed responses against held-out \code{y_B}.
+support responses with nugget variation included against held-out \code{y_B}.
 \code{"latent"} scores latent means against \code{B_sf[[latent_col]]}. Supply
 \code{c("observed", "latent")} to score both targets from the same fold fits.}
 \item{latent_col}{Name of the latent truth column in \code{B_sf}. Required
@@ -30,6 +30,9 @@ studies where latent \code{eta_B} is known.}
 \item{k}{Number of folds.}
 \item{fold_id}{Optional integer vector assigning each observed unit to a fold
 in \code{1:k}. If \code{NULL}, folds are generated at random.}
+\item{missing}{How to handle incomplete raster covariate cells in training or
+held-out supports. Passed to \code{\link{cos_prepare}} and
+\code{\link{cos_make_areal_blocks}}.}
 \item{row_sum_tol}{Tolerance used when checking support-weight row sums.}
 \item{fit_args}{Named list of additional arguments passed to
 \code{\link{cos_fit}}. Values supplied here override sampler defaults
@@ -46,21 +49,21 @@ returned object.}
 Runs K-fold validation for observed-support prediction targets. Each fold
 refits the model to the training observed supports and predicts the held-out
 supports using \code{\link{cos_predict_areal}}. By default, it scores
-posterior predictive observed responses. In simulation studies, it can also
-score latent held-out means when latent truth is supplied.
+observed-support responses with nugget variation included. In simulation
+studies, it can also score latent held-out means when latent truth is supplied.
 }
 \details{
 Held-out observed supports are treated as areal prediction units. The function
-uses \code{cos_predict_areal(method = "sample", keep_samples = TRUE)} to draw
-latent areal means. For \code{target = "observed"}, it then adds independent
-observation-error draws with
+uses \code{cos_predict_areal(spatial_uncertainty = "marginal",
+keep_samples = TRUE)} to draw latent areal means. For
+\code{target = "observed"}, it then adds independent nugget draws with
 variance \code{tau_sq * sum(h^2)} for each held-out support, where \code{h}
 contains the held-out support's fine-cell area weights.
 
 For \code{target = "latent"}, the latent areal mean samples are scored against
 \code{B_sf[[latent_col]]}. This target is useful in simulation studies for
-separating recovery of the underlying support mean from prediction of a noisy
-observed response.
+separating recovery of the underlying support mean from prediction of the
+support response with nugget variation included.
 
 The CRPS is computed from posterior predictive samples using the empirical
 scoring rule

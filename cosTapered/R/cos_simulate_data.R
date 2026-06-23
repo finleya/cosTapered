@@ -68,18 +68,6 @@ cos_simulate_data <- function(X_rast,
     stop("X_rast layer names must be unique.")
   }
 
-  # ------------------------------------------------
-  # Add intercept layer if requested by beta
-  # ------------------------------------------------
-
-  if ("intercept" %in% names(beta) && !"intercept" %in% x_names) {
-    intercept <- X_rast[[1]]
-    intercept[] <- ifelse(is.na(raster::getValues(intercept)), NA_real_, 1)
-    names(intercept) <- "intercept"
-    X_rast <- raster::stack(intercept, X_rast)
-    x_names <- names(X_rast)
-  }
-
   if (!all(names(beta) %in% x_names)) {
     stop("All beta names must match X_rast layer names. Missing: ",
          paste(setdiff(names(beta), x_names), collapse = ", "))

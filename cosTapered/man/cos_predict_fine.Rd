@@ -3,8 +3,10 @@
 \title{Predict Fine-Support Latent Quantities}
 \usage{
 cos_predict_fine(fit, rec_B, pred_coords = NULL, X_pred = NULL,
-  method = c("mean", "sample"), target = c("latent", "observed"),
-  keep_samples = FALSE, n_threads = NULL, verbose = TRUE)
+  offset_pred = NULL,
+  spatial_uncertainty = c("conditional_mean", "marginal", "joint"),
+  target = c("latent", "observed"), keep_samples = FALSE,
+  n_threads = NULL, verbose = TRUE)
 }
 \arguments{
 \item{fit}{A \code{"cos_fit"} object.}
@@ -14,10 +16,23 @@ cos_predict_fine(fit, rec_B, pred_coords = NULL, X_pred = NULL,
 is used.}
 \item{X_pred}{Optional matrix of prediction covariates with column names
 matching the fitted covariates.}
-\item{method}{Use conditional means or sample conditional fine effects.}
-\item{target}{Prediction target. \code{"latent"} returns latent fine-scale
-means \code{eta_A = X_A beta + omega_A}. \code{"observed"} also adds
-independent fine-scale nugget draws with variance \code{tau_sq}.}
+\item{offset_pred}{Optional prediction offset for Polya-Gamma response
+families. Supply \code{NULL} or a finite numeric vector of length one or
+\code{nrow(X_pred)}. For negative-binomial prediction this is commonly a log
+exposure.}
+\item{spatial_uncertainty}{How to handle unobserved fine-support spatial
+effects. \code{"conditional_mean"} is faster but omits conditional spatial
+prediction uncertainty. \code{"marginal"} draws independent marginal
+conditional effects for each prediction cell. \code{"joint"} draws the joint
+conditional spatial effect across fine prediction cells and can require a
+large dense covariance matrix.}
+\item{target}{Prediction target. For Gaussian fits, \code{"latent"} returns
+latent fine-scale means \code{eta_A = X_A beta + omega_A}, while
+\code{"observed"} also adds independent fine-scale nugget draws with variance
+\code{tau_sq}. For negative-binomial fits, \code{"latent"} summarizes the log
+mean \code{eta} and mean count \code{mu = exp(eta)}, while
+\code{"observed"} also simulates count draws from the fitted
+negative-binomial likelihood.}
 \item{keep_samples}{Logical; if \code{TRUE}, store posterior sample matrices.}
 \item{n_threads}{Optional number of OpenMP threads used by compiled
 covariance code. If \code{NULL}, uses \code{fit$prep$n_threads}.}
@@ -33,19 +48,35 @@ zero and predictions use recovered regression coefficients only.
 By default the function reports the latent fine-scale mean target. This is the
 usual target for mapping the underlying forest condition. Use
 \code{target = "observed"} when the desired posterior predictive target is a
-noisy fine-scale response.
+fine-support response with finite-cell nugget variation included.
 
-With \code{method = "sample"}, the conditional covariance can be positive
-semidefinite when predicting fine cells constrained by observed-support
-effects. In that case the function uses eigen-based sampling for the valid
-degenerate Gaussian distribution.
+With \code{spatial_uncertainty = "conditional_mean"}, posterior summaries
+reflect uncertainty in recovered parameters and observed-support effects, but
+they omit conditional uncertainty in unobserved fine-support spatial effects.
+Use \code{spatial_uncertainty = "marginal"} for independent per-cell marginal
+posterior predictive uncertainty or \code{spatial_uncertainty = "joint"} when
+joint fine-surface samples are needed.
+
+With \code{spatial_uncertainty = "joint"}, the conditional covariance can be
+positive semidefinite when predicting fine cells constrained by
+observed-support effects. In that case the function uses eigen-based sampling
+for the valid degenerate Gaussian distribution.
+
+For binomial fits, the function reports link-scale \code{eta_*} summaries and
+response probability \code{p_*} summaries. For negative-binomial fits, it
+reports link-scale \code{eta_*} summaries and mean-count \code{mu_*}
+summaries. When \code{target = "observed"} for a negative-binomial fit, it
+also reports simulated count \code{y_*} summaries.
 }
 \value{
 A list with class \code{"cos_prediction_fine"} containing prediction
 summaries and, optionally, posterior samples. Existing \code{eta_*} summaries
 are always returned. When \code{target = "observed"}, \code{y_*} summaries and,
-if requested, \code{y_samples} are also returned. The object also contains
-\code{timing}, a named numeric vector with user, system, and elapsed seconds.
+if requested, \code{y_samples} are also returned. Binomial fits return
+\code{p_*} summaries and optional \code{p_samples}; negative-binomial fits
+return \code{mu_*} summaries and optional \code{mu_samples}. The object also
+contains \code{timing}, a named numeric vector with user, system, and elapsed
+seconds.
 }
 \examples{
 \dontrun{
@@ -96,7 +127,9 @@ fit <- cos_fit(
 rec_B <- cos_recover_B(fit, burn_in = 100, n_samples = 100,
                        seed = 1, verbose = FALSE)
 
-pred <- cos_predict_fine(fit, rec_B, method = "mean", verbose = FALSE)
+pred <- cos_predict_fine(fit, rec_B,
+                         spatial_uncertainty = "conditional_mean",
+                         verbose = FALSE)
 summary(pred)
 
 fine_df <- pred$summary[, c("x", "y", "eta_mean", "eta_sd")]

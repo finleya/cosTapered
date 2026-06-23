@@ -1,0 +1,7 @@
+nav#TOC ul.collapse {
+  display: block !important;
+}
+
+nav#TOC ul {
+  padding-left: 0;
+}

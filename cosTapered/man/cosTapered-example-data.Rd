@@ -25,11 +25,7 @@ package examples and tests.
 The observed responses in \file{example_B.gpkg} were generated with
 \code{\link{cos_simulate_data}} using the included canopy-height raster,
 forest boundary, and known parameter values stored in
-\file{example_truth.rds}. The development script
-\file{dev/make_example_data.R} contains the full reproducible data-generation
-workflow: it prepares the source raster and vector files, calls
-\code{\link{cos_simulate_data}}, and writes the resulting files into
-\file{cosTapered/inst/extdata}.
+\file{example_truth.rds}.
 }
 \author{
 Canopy height model data collected by Arthur Spitta

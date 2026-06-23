@@ -2,7 +2,8 @@
 \alias{cos_predict_areal}
 \title{Predict Areal-Support Latent Quantities}
 \usage{
-cos_predict_areal(fit, rec_B, U_blocks, method = c("mean", "sample"),
+cos_predict_areal(fit, rec_B, U_blocks, offset_U = NULL,
+  spatial_uncertainty = c("conditional_mean", "marginal"),
   target = c("latent", "observed"), keep_samples = FALSE,
   n_threads = NULL, verbose = TRUE)
 }
@@ -11,12 +12,23 @@ cos_predict_areal(fit, rec_B, U_blocks, method = c("mean", "sample"),
 \item{rec_B}{A \code{"cos_recovery_B"} object.}
 \item{U_blocks}{A \code{"cos_areal_blocks"} object from
 \code{\link{cos_make_areal_blocks}}.}
-\item{method}{Use conditional means or sample one-dimensional conditional
-Gaussian effects for each areal unit.}
-\item{target}{Prediction target. \code{"latent"} returns latent areal means
-\code{eta_U = X_U beta + omega_U}. \code{"observed"} also adds independent
-support-level nugget draws with variance \code{tau_sq * sum(h^2)} for each
-prediction support.}
+\item{offset_U}{Optional prediction offset for Polya-Gamma response
+families. Supply \code{NULL}, a finite numeric vector of length one or
+\code{length(U_blocks$blocks)}, or the name of a column in
+\code{U_blocks$U_sf}. For negative-binomial areal prediction this is commonly
+a log exposure for each prediction unit.}
+\item{spatial_uncertainty}{How to handle unobserved areal-support spatial
+effects. \code{"conditional_mean"} is faster but omits conditional spatial
+prediction uncertainty. \code{"marginal"} draws independent marginal
+conditional effects for each areal unit, but samples are not joint across
+units.}
+\item{target}{Prediction target. For Gaussian fits, \code{"latent"} returns
+latent areal means \code{eta_U = X_U beta + omega_U}, while
+\code{"observed"} also adds independent support-level nugget draws with
+variance \code{tau_sq * sum(h^2)} for each prediction support. For
+negative-binomial fits, \code{"latent"} summarizes the log mean \code{eta}
+and mean count \code{mu = exp(eta)}, while \code{"observed"} also simulates
+count draws from the fitted negative-binomial likelihood.}
 \item{keep_samples}{Logical; if \code{TRUE}, store posterior sample matrices.}
 \item{n_threads}{Optional number of OpenMP threads used by compiled
 covariance code. If \code{NULL}, uses \code{fit$prep$n_threads}.}
@@ -32,14 +44,34 @@ and predictions use recovered regression coefficients only.
 By default the function reports the latent areal mean target. This is the
 usual target for stand means and inventory summaries. Use
 \code{target = "observed"} when the desired posterior predictive target is an
-observed/support response rather than the underlying latent mean.
+areal-support response with support-averaged nugget variation included rather
+than the underlying latent mean.
+
+With \code{spatial_uncertainty = "conditional_mean"}, posterior summaries
+reflect uncertainty in recovered parameters and observed-support effects, but
+they omit conditional uncertainty in unobserved areal spatial effects. With
+\code{spatial_uncertainty = "marginal"}, samples include marginal conditional
+spatial uncertainty for each prediction unit, but they are not joint samples
+across units. Do not use those samples for totals, contrasts, rankings, or
+other summaries that require cross-unit posterior covariance.
+
+For binomial fits, the function reports link-scale \code{eta_*} summaries and
+response probability \code{p_*} summaries. For negative-binomial fits, it
+reports link-scale \code{eta_*} summaries and mean-count \code{mu_*}
+summaries. When \code{target = "observed"} for a negative-binomial fit, it
+also reports simulated count \code{y_*} summaries. The \code{offset_U}
+argument defines the prediction-unit exposure or other known offset; the
+package does not infer count exposure from polygon area.
 }
 \value{
 A list with class \code{"cos_prediction_areal"} containing areal prediction
 summaries and, optionally, posterior samples. Existing \code{eta_*} summaries
 are always returned. When \code{target = "observed"}, \code{y_*} summaries and,
-if requested, \code{y_samples} are also returned. The object also contains
-\code{timing}, a named numeric vector with user, system, and elapsed seconds.
+if requested, \code{y_samples} are also returned. Binomial fits return
+\code{p_*} summaries and optional \code{p_samples}; negative-binomial fits
+return \code{mu_*} summaries and optional \code{mu_samples}. The object also
+contains \code{timing}, a named numeric vector with user, system, and elapsed
+seconds.
 }
 \examples{
 \dontrun{
@@ -94,7 +126,8 @@ rec_B <- cos_recover_B(fit, burn_in = 100, n_samples = 100,
 
 U_blocks <- cos_make_areal_blocks(U_sf, X_rast, id_col = "U_id",
                                   verbose = FALSE)
-pred_U <- cos_predict_areal(fit, rec_B, U_blocks, method = "mean",
+pred_U <- cos_predict_areal(fit, rec_B, U_blocks,
+                            spatial_uncertainty = "conditional_mean",
                             verbose = FALSE)
 summary(pred_U)
 

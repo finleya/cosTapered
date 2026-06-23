@@ -84,7 +84,7 @@ test_that("fine prediction samples semidefinite conditional covariance", {
       rec_B = rec,
       pred_coords = prep$A_coords[pred_ind, , drop = FALSE],
       X_pred = prep$X[pred_ind, , drop = FALSE],
-      method = "sample",
+      spatial_uncertainty = "joint",
       keep_samples = TRUE,
       verbose = FALSE
     ),

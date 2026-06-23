@@ -7,6 +7,7 @@ cos_cv_observed <- function(fit,
                             latent_col = NULL,
                             k = 10L,
                             fold_id = NULL,
+                            missing = c("error", "drop", "renormalize"),
                             row_sum_tol = 1e-5,
                             fit_args = list(),
                             recover_args = list(),
@@ -29,6 +30,7 @@ cos_cv_observed <- function(fit,
   if (anyDuplicated(target)) {
     target <- unique(target)
   }
+  missing <- match.arg(missing)
 
   if (is.null(B_sf)) {
     B_sf <- fit$prep$B_sf
@@ -176,6 +178,7 @@ cos_cv_observed <- function(fit,
       spatial = spatial,
       taper_code = taper_code,
       n_threads = n_threads,
+      missing = missing,
       row_sum_tol = row_sum_tol,
       verbose = FALSE
     )
@@ -216,6 +219,7 @@ cos_cv_observed <- function(fit,
       U_sf = B_test,
       X_rast = X_rast,
       id_col = ".cos_cv_id",
+      missing = missing,
       row_sum_tol = row_sum_tol,
       verbose = FALSE
     )
@@ -224,7 +228,7 @@ cos_cv_observed <- function(fit,
       fit = fit,
       rec_B = rec,
       U_blocks = holdout_blocks,
-      method = "sample",
+      spatial_uncertainty = "marginal",
       target = "latent",
       keep_samples = TRUE,
       verbose = FALSE
@@ -391,6 +395,7 @@ cos_cv_observed <- function(fit,
     spatial = spatial,
     target = target,
     k = k,
+    missing = missing,
     fit_args = fit_args_user,
     recover_args = recover_args_user,
     fits = fits,

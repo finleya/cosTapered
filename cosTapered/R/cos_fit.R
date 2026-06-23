@@ -1,5 +1,9 @@
 cos_fit <- function(prep,
                     priors,
+                    family = c("gaussian", "binomial", "negative_binomial", "negbin", "nb"),
+                    trials = NULL,
+                    size = NULL,
+                    offset = NULL,
                     n_chains = 1L,
                     starting = NULL,
                     tuning = c(log_tau_B_sq = 1, log_sigma_sq = 1, z_phi = 1),
@@ -21,6 +25,10 @@ cos_fit <- function(prep,
   }
   if (!inherits(priors, "cos_priors")) {
     stop("priors must be a cos_priors object from cos_default_priors().")
+  }
+  family <- match.arg(family)
+  if (family %in% c("negbin", "nb")) {
+    family <- "negative_binomial"
   }
 
   n_chains <- as.integer(n_chains)
@@ -49,12 +57,26 @@ cos_fit <- function(prep,
     theta_names <- "log_tau_B_sq"
   }
 
-  if (is.null(names(tuning)) || !all(theta_names %in% names(tuning))) {
-    stop("tuning must be a named vector with names: ", paste(theta_names, collapse = ", "))
+  if (family %in% c("binomial", "negative_binomial")) {
+    theta_names <- if (spatial) c("log_sigma_sq", "z_phi") else character(0)
   }
-  tuning <- as.numeric(tuning[theta_names])
-  names(tuning) <- theta_names
-  if (any(!is.finite(tuning) | tuning <= 0)) stop("tuning values must be positive and finite.")
+
+  if (length(theta_names) > 0L) {
+    if (is.null(names(tuning)) || !all(theta_names %in% names(tuning))) {
+      stop("tuning must be a named vector with names: ", paste(theta_names, collapse = ", "))
+    }
+    tuning <- as.numeric(tuning[theta_names])
+    names(tuning) <- theta_names
+    if (any(!is.finite(tuning) | tuning <= 0)) stop("tuning values must be positive and finite.")
+  } else {
+    tuning <- numeric()
+  }
+
+  if (family == "gaussian") {
+    if (!is.null(trials)) stop("trials is used only with family = 'binomial'.")
+    if (!is.null(size)) stop("size is used only with family = 'negative_binomial'.")
+    if (!is.null(offset)) stop("offset is used only with Polya-Gamma response families.")
+  }
 
   if (!is.null(seed)) set.seed(seed)
 
@@ -94,6 +116,279 @@ cos_fit <- function(prep,
 
   X_B_V_beta_X_B <- X_B %*% V_beta %*% t(X_B)
   mu_y <- as.numeric(X_B %*% mu_beta)
+
+  phi_to_z <- function(phi) {
+    log((phi - phi_lower) / (phi_upper - phi))
+  }
+
+  z_to_phi <- function(z) {
+    phi_upper - (phi_upper - phi_lower) / (1 + exp(z))
+  }
+
+  if (family %in% c("binomial", "negative_binomial")) {
+    family_code <- if (family == "binomial") 1L else 2L
+    family_label <- if (family == "binomial") "binomial" else "negative-binomial"
+
+    if (!is.null(offset) && is.character(offset) && length(offset) == 1L) {
+      if (!offset %in% names(prep$B_sf)) {
+        stop("offset column not found in prep$B_sf.")
+      }
+      offset <- prep$B_sf[[offset]]
+    }
+    if (is.null(offset)) {
+      offset <- rep(0, n_b)
+    }
+    if (length(offset) == 1L) {
+      offset <- rep(offset, n_b)
+    }
+    offset <- as.numeric(offset)
+    if (length(offset) != n_b || any(!is.finite(offset))) {
+      stop("offset must be NULL, a column name in prep$B_sf, or a finite numeric vector of length one or length(prep$y_B).")
+    }
+
+    if (family == "binomial") {
+      if (!is.null(size)) {
+        stop("size is used only with family = 'negative_binomial'.")
+      }
+      if (is.null(trials)) {
+        stop("trials must be supplied for family = 'binomial'.")
+      }
+      if (is.character(trials) && length(trials) == 1L) {
+        if (!trials %in% names(prep$B_sf)) {
+          stop("trials column not found in prep$B_sf.")
+        }
+        trials <- prep$B_sf[[trials]]
+      }
+      if (length(trials) == 1L) {
+        trials <- rep(trials, n_b)
+      }
+      if (length(trials) != n_b) {
+        stop("trials must have length one or length(prep$y_B).")
+      }
+      trials <- as.integer(trials)
+      if (any(!is.finite(trials) | trials < 1L)) {
+        stop("trials must contain positive integers.")
+      }
+      if (any(!is.finite(y_B) | y_B < 0 | y_B != floor(y_B))) {
+        stop("Binomial responses in prep$y_B must be nonnegative integers.")
+      }
+      if (any(y_B > trials)) {
+        stop("Binomial responses in prep$y_B cannot exceed trials.")
+      }
+      nb_size <- NA_real_
+    } else {
+      if (!is.null(trials)) {
+        stop("trials is used only with family = 'binomial'.")
+      }
+      if (is.null(size)) {
+        stop("size must be supplied for family = 'negative_binomial'.")
+      }
+      size <- as.numeric(size)
+      if (length(size) != 1L || !is.finite(size) || size <= 0) {
+        stop("size must be a finite positive scalar for family = 'negative_binomial'.")
+      }
+      nb_size <- size
+      trials <- rep(1L, n_b)
+      if (any(!is.finite(y_B) | y_B < 0 | y_B != floor(y_B))) {
+        stop("Negative-binomial responses in prep$y_B must be nonnegative integers.")
+      }
+    }
+
+    # ------------------------------------------------
+    # Starting values for explicit PG state
+    # ------------------------------------------------
+
+    beta_start <- matrix(rep(mu_beta, each = n_chains), nrow = n_chains)
+    colnames(beta_start) <- colnames(X_B)
+
+    if (is.null(starting)) {
+      if (spatial) {
+        if (n_chains == 1L) {
+          phi_grid <- exp(mean(log(c(phi_lower, phi_upper))))
+        } else {
+          phi_grid <- exp(seq(log(phi_lower), log(phi_upper), length.out = n_chains + 2L))
+          phi_grid <- phi_grid[-c(1L, length(phi_grid))]
+        }
+        starting <- data.frame(
+          sigma_sq = rep(1, n_chains),
+          phi = phi_grid
+        )
+      } else {
+        starting <- data.frame(.chain = seq_len(n_chains))
+      }
+    } else {
+      starting <- as.data.frame(starting)
+      if (nrow(starting) == 1L && n_chains > 1L) {
+        starting <- starting[rep(1L, n_chains), , drop = FALSE]
+      }
+      if (nrow(starting) != n_chains) {
+        stop("starting must have either one row or n_chains rows.")
+      }
+      beta_cols <- intersect(colnames(X_B), names(starting))
+      if (length(beta_cols) > 0L) {
+        if (length(beta_cols) != ncol(X_B)) {
+          stop("For Polya-Gamma fits, starting beta values must include all covariates or none.")
+        }
+        beta_start <- as.matrix(starting[, colnames(X_B), drop = FALSE])
+      }
+    }
+
+    if (spatial) {
+      if (!all(c("sigma_sq", "phi") %in% names(starting))) {
+        stop("Spatial Polya-Gamma starting values must include sigma_sq and phi.")
+      }
+      if (any(!is.finite(starting$sigma_sq) | starting$sigma_sq <= 0)) {
+        stop("starting$sigma_sq must be positive and finite.")
+      }
+      if (any(!is.finite(starting$phi) | starting$phi <= phi_lower | starting$phi >= phi_upper)) {
+        stop("starting$phi must be finite and inside (phi_lower, phi_upper).")
+      }
+    }
+
+    # ------------------------------------------------
+    # Run PG chains
+    # ------------------------------------------------
+
+    chain_fits <- vector("list", n_chains)
+    theta_z_list <- vector("list", n_chains)
+    theta_list <- vector("list", n_chains)
+    lp_list <- vector("list", n_chains)
+    beta_list <- vector("list", n_chains)
+    omega_list <- vector("list", n_chains)
+    eta_list <- vector("list", n_chains)
+
+    for (ch in seq_len(n_chains)) {
+      if (verbose) {
+        cat("\nStarting ", family_label, " PG chain ", ch, " of ", n_chains, "\n", sep = "")
+      }
+
+      chain_fits[[ch]] <- binomial_pg_sampler_Rcall(
+        y_B = y_B,
+        trials = trials,
+        offset = offset,
+        family_code = family_code,
+        nb_size = nb_size,
+        X_B = X_B,
+        C_B_pairs = C_B_pairs,
+        spatial = spatial,
+        beta_mu = mu_beta,
+        V_beta = V_beta,
+        starting_beta = beta_start[ch, ],
+        starting_sigma_sq = if (spatial) starting$sigma_sq[ch] else NA_real_,
+        starting_phi = if (spatial) starting$phi[ch] else NA_real_,
+        tuning = tuning,
+        n_batch = n_batch,
+        batch_length = batch_length,
+        accept_rate = accept_rate,
+        c0 = 1,
+        c1 = 0.8,
+        report = report,
+        verbose = verbose,
+        sigma_shape = sigma_shape,
+        sigma_scale = sigma_scale,
+        phi_lower = phi_lower,
+        phi_upper = phi_upper,
+        n_threads = n_threads
+      )
+
+      theta_z <- as.data.frame(chain_fits[[ch]]$theta_z_samples)
+      if (spatial) names(theta_z) <- theta_names
+      theta_z$chain <- ch
+      theta_z$iter <- seq_len(nrow(theta_z))
+      theta_z_list[[ch]] <- theta_z
+
+      theta <- theta_z[, c("chain", "iter"), drop = FALSE]
+      if (spatial) {
+        theta$sigma_sq <- exp(theta_z$log_sigma_sq)
+        theta$phi <- z_to_phi(theta_z$z_phi)
+        theta$eff_range <- 3 / theta$phi
+      } else {
+        theta$sigma_sq <- NA_real_
+        theta$phi <- NA_real_
+        theta$eff_range <- NA_real_
+      }
+      theta$lp <- as.numeric(chain_fits[[ch]]$p.lp.samples)
+      theta_list[[ch]] <- theta
+
+      lp_list[[ch]] <- data.frame(
+        chain = ch,
+        iter = seq_along(chain_fits[[ch]]$p.lp.samples),
+        lp = as.numeric(chain_fits[[ch]]$p.lp.samples)
+      )
+
+      beta_dat <- as.data.frame(chain_fits[[ch]]$beta_samples)
+      beta_dat$chain <- ch
+      beta_dat$iter <- seq_len(nrow(beta_dat))
+      beta_list[[ch]] <- beta_dat
+
+      omega_dat <- as.data.frame(chain_fits[[ch]]$omega_B_samples)
+      omega_dat$chain <- ch
+      omega_dat$iter <- seq_len(nrow(omega_dat))
+      omega_list[[ch]] <- omega_dat
+
+      eta_dat <- as.data.frame(chain_fits[[ch]]$eta_B_samples)
+      eta_dat$chain <- ch
+      eta_dat$iter <- seq_len(nrow(eta_dat))
+      eta_list[[ch]] <- eta_dat
+    }
+
+    theta_z_samples <- do.call(rbind, theta_z_list)
+    rownames(theta_z_samples) <- NULL
+    theta_samples <- do.call(rbind, theta_list)
+    rownames(theta_samples) <- NULL
+    lp_samples <- do.call(rbind, lp_list)
+    rownames(lp_samples) <- NULL
+
+    beta_samples <- do.call(rbind, beta_list)
+    beta_samples <- beta_samples[order(beta_samples$chain, beta_samples$iter), , drop = FALSE]
+    rownames(beta_samples) <- NULL
+
+    omega_B_samples <- do.call(rbind, omega_list)
+    omega_B_samples <- omega_B_samples[order(omega_B_samples$chain, omega_B_samples$iter), , drop = FALSE]
+    rownames(omega_B_samples) <- NULL
+
+    eta_B_samples <- do.call(rbind, eta_list)
+    eta_B_samples <- eta_B_samples[order(eta_B_samples$chain, eta_B_samples$iter), , drop = FALSE]
+    rownames(eta_B_samples) <- NULL
+
+    dt <- proc.time() - t_start
+    timing <- c(
+      user = unname(dt[["user.self"]]),
+      system = unname(dt[["sys.self"]]),
+      elapsed = unname(dt[["elapsed"]])
+    )
+
+    out <- list(
+      prep = prep,
+      priors = priors,
+      family = family,
+      trials = trials,
+      size = if (family == "negative_binomial") nb_size else NULL,
+      offset = offset,
+      theta_samples = theta_samples,
+      theta_z_samples = theta_z_samples,
+      lp_samples = lp_samples,
+      beta_samples = beta_samples,
+      omega_B_samples = omega_B_samples,
+      eta_B_samples = eta_B_samples,
+      chain_fits = chain_fits,
+      starting = starting,
+      tuning = tuning,
+      sampler = list(
+        n_chains = n_chains,
+        n_batch = n_batch,
+        batch_length = batch_length,
+        accept_rate = accept_rate
+      ),
+      spatial = spatial,
+      d_h_bar = d_h_bar,
+      timing = timing,
+      call = match.call()
+    )
+
+    class(out) <- "cos_fit"
+    return(out)
+  }
 
   # ------------------------------------------------
   # Starting values on natural scale
@@ -161,14 +456,6 @@ cos_fit <- function(prep,
   }
   if (spatial && any(!is.finite(starting$phi) | starting$phi <= phi_lower | starting$phi >= phi_upper)) {
     stop("starting$phi must be finite and inside (phi_lower, phi_upper).")
-  }
-
-  phi_to_z <- function(phi) {
-    log((phi - phi_lower) / (phi_upper - phi))
-  }
-
-  z_to_phi <- function(z) {
-    phi_upper - (phi_upper - phi_lower) / (1 + exp(z))
   }
 
   # ------------------------------------------------
@@ -273,17 +560,30 @@ cos_fit <- function(prep,
           "; log posterior = ", signif(theta_log_target(theta_start_z), 6), "\n", sep = "")
     }
 
-    chain_fits[[ch]] <- lapMetropBlock(
-      ltd = theta_log_target,
+    chain_fits[[ch]] <- gaussian_metrop_sampler_Rcall(
+      y_B = y_B,
+      mu_y = mu_y,
+      X_B_V_beta_X_B = X_B_V_beta_X_B,
+      D_h = D_h,
+      C_B_pairs = C_B_pairs,
+      spatial = spatial,
       starting = theta_start_z,
       tuning = tuning,
-      batch = n_batch,
-      batch.length = batch_length,
-      accept.rate = accept_rate,
+      n_batch = n_batch,
+      batch_length = batch_length,
+      accept_rate = accept_rate,
       c0 = 1,
       c1 = 0.8,
       report = report,
-      verbose = verbose
+      verbose = verbose,
+      d_h_bar = d_h_bar,
+      tau_B_shape = tau_B_shape,
+      tau_B_scale = tau_B_scale,
+      sigma_shape = sigma_shape,
+      sigma_scale = sigma_scale,
+      phi_lower = phi_lower,
+      phi_upper = phi_upper,
+      n_threads = n_threads
     )
 
     theta_z <- as.data.frame(chain_fits[[ch]]$p.theta.samples)
@@ -339,6 +639,7 @@ cos_fit <- function(prep,
   out <- list(
     prep = prep,
     priors = priors,
+    family = family,
     theta_samples = theta_samples,
     theta_z_samples = theta_z_samples,
     lp_samples = lp_samples,

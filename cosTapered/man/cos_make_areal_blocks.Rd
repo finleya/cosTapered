@@ -3,13 +3,19 @@
 \title{Build Areal Prediction Blocks}
 \usage{
 cos_make_areal_blocks(U_sf, X_rast, id_col = NULL,
-  row_sum_tol = 1e-5, verbose = TRUE)
+  missing = c("error", "drop", "renormalize"), row_sum_tol = 1e-5,
+  verbose = TRUE)
 }
 \arguments{
 \item{U_sf}{An \pkg{sf} object containing areal prediction polygons in the
 same projected CRS as \code{X_rast}.}
 \item{X_rast}{A \pkg{raster} object with prepared fine-support covariates.}
 \item{id_col}{Optional column in \code{U_sf} used as prediction-unit label.}
+\item{missing}{How to handle incomplete raster covariate cells that overlap
+prediction supports. \code{"error"} stops if retained support weights fall
+below one. \code{"drop"} keeps the covered-cell weights without rescaling.
+\code{"renormalize"} rescales retained weights to sum to one within each
+prediction support.}
 \item{row_sum_tol}{Tolerance used when warning about support-weight row
 sums.}
 \item{verbose}{Logical; if \code{TRUE}, print exact extraction progress.}
@@ -17,6 +23,12 @@ sums.}
 \description{
 Computes fine-cell weights, covariate averages, coordinates, and metadata
 for each areal prediction polygon.
+}
+\details{
+By default, incomplete raster covariate cells are treated as an error when
+they would change the support average. Use \code{missing = "drop"} or
+\code{missing = "renormalize"} only when the prediction target should be based
+on covered cells rather than the full prediction polygon.
 }
 \value{
 A list with class \code{"cos_areal_blocks"} containing areal support blocks

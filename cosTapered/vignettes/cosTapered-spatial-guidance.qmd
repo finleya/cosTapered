@@ -1,15 +1,29 @@
 ---
 title: "When Should the Spatial COS Model Improve Prediction?"
+subtitle: "Range, target support, scoring rules, and practical model choice"
 author: "Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee"
-date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+format:
+  html:
+    toc: true
+    toc-location: left
+    toc-expand: true
+    toc-depth: 2
+    number-sections: true
+    code-fold: show
+    code-overflow: wrap
+    html-math-method: katex
+    css: cosTapered-vignette.css
+execute:
+  warning: false
+  message: false
 vignette: >
   %\VignetteIndexEntry{When Should the Spatial COS Model Improve Prediction?}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
+```{r setup}
+#| include: false
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -39,7 +53,7 @@ The main practical recommendations are:
    short-ranged relative to the sampling design, or not important for the
    inferential objective.
 3. Decide first whether the inferential objective is the latent areal mean
-   \(\eta_B\) or the observed areal response \(y_B\). These are different
+   $\eta_B$ or the observed areal response $y_B$. These are different
    prediction and validation targets.
 4. Do not interpret high observed-target coverage by itself as evidence of
    useful prediction. A model can achieve high coverage by producing very wide
@@ -50,8 +64,8 @@ The main practical recommendations are:
 
 The simulation study described below supports these recommendations. With the
 example data design used here, spatial RMSPE gains are near zero at short
-effective ranges, but reach about 25% for latent \(\eta_B\) and about 18% for
-observed \(y_B\) at a 1000 m effective range. CRPS favors the spatial model
+effective ranges, but reach about 25% for latent $\eta_B$ and about 18% for
+observed $y_B$ at a 1000 m effective range. CRPS favors the spatial model
 across the full range grid, with gains increasing as the spatial process
 becomes longer-ranged.
 
@@ -66,8 +80,8 @@ We focus on three user-facing questions:
 
 1. How strong and long-ranged must the residual spatial process be before the
    spatial COS model improves predictive performance?
-2. How do conclusions change when the prediction target is latent \(\eta_B\)
-   rather than observed \(y_B\)?
+2. How do conclusions change when the prediction target is latent $\eta_B$
+   rather than observed $y_B$?
 3. How should users interpret RMSPE, CRPS, coverage, and interval width when
    comparing spatial and nonspatial COS fits?
 
@@ -79,15 +93,13 @@ and changes the effective range across scenarios.
 
 ## Where the reproducibility code lives
 
-Long-running simulation code is usually not run inside package vignettes,
-because CRAN and package users need vignettes to build quickly. A common
-package pattern is:
+Long-running simulation code is not run inside this vignette because package
+users need vignettes to build quickly. The source code for the study is
+installed with the package, and selected figures are included in the vignette:
 
 * keep the vignette text and selected figures in `vignettes/`;
 * place long-running reproduction scripts in `inst/scripts/`, so they are
-  installed with the package and available through `system.file()`;
-* keep development outputs and checkpoints outside the package source, often
-  in `dev/`, when they are too large or too slow for routine package builds.
+  installed with the package and available through `system.file()`.
 
 For this vignette, the installed reproduction script is:
 
@@ -104,46 +116,42 @@ script <- system.file("scripts", "spatial-cos-guidance-repeated-study.R",
 source(script)
 ```
 
-The source repository also contains the development version at
-`dev/cv_range_targets_repeated_api.R` and the figure script at
-`dev/cv_range_targets_repeated_api/figures.R`.
-
 ## Prediction targets
 
 The distinction between latent and observed prediction targets is central. Let
-\(B_l\), \(l=1,\ldots,n_B\), denote an observed support. The latent areal mean
+$B_l$, $l=1,\ldots,n_B$, denote an observed support. The latent areal mean
 is
 
-\[
+$$
 \eta(B_l)
 =
 \sum_i h_{li}
 \left\{
 x(A_i)^\top\beta+\omega(A_i)
 \right\},
-\]
+$$
 
-where \(h_{li}\) are the area weights connecting observed support \(B_l\) to
-fine support cells \(A_i\). This target excludes the nugget term. It is the
+where $h_{li}$ are the area weights connecting observed support $B_l$ to
+fine support cells $A_i$. This target excludes the nugget term. It is the
 underlying support-averaged forest condition implied by the regression and
 spatial process.
 
 The observed areal response is
 
-\[
+$$
 y(B_l)=\eta(B_l)+\epsilon(B_l),
-\]
+$$
 
 where
 
-\[
+$$
 \epsilon(B_l)\sim
 N\left(0,\tau^2\sum_i h_{li}^2\right)
-\]
+$$
 
 when fine-support nugget terms are independent.
 
-Predicting \(\eta_B\) asks for the latent support average. Predicting \(y_B\)
+Predicting $\eta_B$ asks for the latent support average. Predicting $y_B$
 asks what value would be observed if the support were measured again with
 nugget variation included. The observed target is therefore intrinsically
 noisier, and predictive intervals should be wider.
@@ -155,33 +163,33 @@ forest boundary. For each simulation, the covariate stack contained an
 intercept raster and the example canopy-height raster. The true regression
 coefficients were
 
-\[
+$$
 \beta = (-10,\ 15.87132)^\top,
-\]
+$$
 
 for the intercept and canopy-height covariate. The observed-support nugget
 variance was set to
 
-\[
+$$
 \tau_B^2 = 250,
-\]
+$$
 
 and the spatial variance was set to
 
-\[
+$$
 \sigma^2 = 750.
-\]
+$$
 
 The effective range grid was
 
-\[
+$$
 25,\ 50,\ 100,\ 150,\ 250,\ 350,\ 500,\ 750,\ 1000\ \mathrm{m}.
-\]
+$$
 
 For the exponential covariance, the effective range is the distance where
-correlation has dropped to about 0.05, approximated as \(3/\phi\).
+correlation has dropped to about 0.05, approximated as $3/\phi$.
 
-The observed-support design used \(n_B=49\) circular plots with radius 16 m.
+The observed-support design used $n_B=49$ circular plots with radius 16 m.
 The domain, plot locations, and fold assignment were fixed across all
 simulation scenarios. For each effective range, 50 independent process and
 nugget realizations were generated. The cross-validation design used 10 folds.
@@ -196,7 +204,7 @@ For each replicate and effective range, two models were fit:
    residual spatial process.
 
 Both models used the same held-out folds. Each cross-validation refit scored
-both \(\eta_B\) and \(y_B\) targets.
+both $\eta_B$ and $y_B$ targets.
 
 ## Recorded summaries
 
@@ -206,7 +214,7 @@ coverage, and mean 95% interval width.
 
 For model comparison, the spatial improvement in RMSPE was computed as
 
-\[
+$$
 100
 \frac{
 \mathrm{RMSPE}_{\mathrm{nonspatial}}
@@ -215,7 +223,7 @@ For model comparison, the spatial improvement in RMSPE was computed as
 }{
 \mathrm{RMSPE}_{\mathrm{nonspatial}}
 }.
-\]
+$$
 
 Positive values indicate better performance for the spatial model. The same
 definition was used for CRPS. The study also recorded spatial win rates, the
@@ -239,8 +247,8 @@ quickly to provide much information about held-out supports from the training
 supports.
 
 As the effective range increases, the spatial model begins to improve RMSPE.
-At 500 m, mean RMSPE improvement is about 12.2% for latent \(\eta_B\) and
-10.1% for observed \(y_B\). At 1000 m, the improvements increase to about
+At 500 m, mean RMSPE improvement is about 12.2% for latent $\eta_B$ and
+10.1% for observed $y_B$. At 1000 m, the improvements increase to about
 25.2% and 18.3%, respectively.
 
 The CRPS panels show a stronger and more stable spatial advantage. Even when
@@ -261,13 +269,13 @@ knitr::include_graphics("figures/cv_coverage_by_target_model.png")
 knitr::include_graphics("figures/cv_interval_width_by_target_model.png")
 ```
 
-For the latent target \(\eta_B\), the nonspatial model undercovers badly. Mean
+For the latent target $\eta_B$, the nonspatial model undercovers badly. Mean
 coverage is roughly 0.41 to 0.62 across the range grid. This is expected:
 when the validation target is the latent spatial mean, omitted residual
 spatial structure is not represented by the nugget component. The spatial
 model has much better latent-target coverage, roughly 0.86 to 0.95.
 
-For the observed target \(y_B\), the nonspatial model has very high coverage,
+For the observed target $y_B$, the nonspatial model has very high coverage,
 about 0.98 to 1.00. This does not mean the nonspatial model is making sharp
 predictions. Its observed-target intervals are very wide, with mean widths
 around 127 to 153. The spatial observed-target intervals are narrower, about
@@ -288,7 +296,7 @@ knitr::include_graphics("figures/cv_improvement_and_win_rates.png")
 ```
 
 At short ranges, the spatial model is not consistently better for point
-prediction. For latent \(\eta_B\), mean RMSPE improvement is slightly negative
+prediction. For latent $\eta_B$, mean RMSPE improvement is slightly negative
 from 25 to 150 m. By 350 m, latent-target improvement is about 5.6%; by
 750 m it is about 20.5%; and by 1000 m it is about 25.2%. The observed target
 follows the same broad pattern, with about 5.3% improvement at 350 m and about
@@ -309,7 +317,7 @@ knitr::include_graphics("figures/cv_replicate_improvement_curves.png")
 
 Spatial gains increase with effective range. They are larger and more
 consistent for CRPS than for RMSPE. They are generally larger for latent
-\(\eta_B\) than for observed \(y_B\), because observed-target prediction
+$\eta_B$ than for observed $y_B$, because observed-target prediction
 includes nugget variation that no spatial model can fully predict.
 
 ## Choosing latent or observed prediction
@@ -321,10 +329,10 @@ support.
 
 Use latent prediction when the target is the underlying support average:
 
-\[
+$$
 \eta_U =
 \sum_i g_{ki}\{x(A_i)^\top\beta+\omega(A_i)\}.
-\]
+$$
 
 This is often the relevant target for mapping forest condition, estimating
 stand means, ranking management units, or summarizing expected resource
@@ -334,17 +342,17 @@ corresponds to `target = "latent"` in areal or fine prediction functions.
 Use observed prediction when the target is the measured response on the
 support:
 
-\[
+$$
 y_U = \eta_U+\epsilon_U.
-\]
+$$
 
-For areal support \(U\), the nugget variance is
+For areal support $U$, the nugget variance is
 
-\[
+$$
 \mathrm{Var}(\epsilon_U)
 =
 \tau^2\sum_i g_{ki}^2.
-\]
+$$
 
 This is appropriate for cross validation against held-out observed responses
 or for predictions that should include measurement-scale variation. In the
@@ -380,12 +388,12 @@ that connect observed and prediction supports.
 
 For applied analyses:
 
-1. Define the prediction target first. Use \(\eta\) for latent support
-   averages and \(y\) for observed responses that include nugget variation.
+1. Define the prediction target first. Use $\eta$ for latent support
+   averages and $y$ for observed responses that include nugget variation.
 2. Fit the nonspatial COS model as a support-aware baseline.
 3. Fit the spatial COS model when residual spatial structure is plausible and
-   the number of observed supports can support estimation of \(\sigma^2\) and
-   \(\phi\).
+   the number of observed supports can support estimation of $\sigma^2$ and
+   $\phi$.
 4. Compare models using RMSPE, CRPS, coverage, and interval width. Do not rely
    on coverage alone.
 5. Interpret spatial gains relative to the sampling design.

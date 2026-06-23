@@ -11,6 +11,8 @@ summary.cos_fit <- function(object,
   fit <- object
   spatial <- isTRUE(fit$spatial)
   if (is.null(fit$spatial)) spatial <- TRUE
+  family <- fit$family
+  if (is.null(family)) family <- "gaussian"
 
   burn_in <- as.integer(burn_in)
   if (!is.finite(burn_in) || burn_in < 1L) {
@@ -22,8 +24,21 @@ summary.cos_fit <- function(object,
   if (nrow(theta) == 0L) stop("No theta samples remain after applying burn_in.")
 
   pars <- intersect(pars, names(theta))
-  if (length(pars) == 0L) stop("No requested parameters found in fit$theta_samples.")
   pars <- pars[vapply(pars, function(nm) any(is.finite(theta[[nm]])), logical(1))]
+
+  summary_source <- theta
+  summary_label <- "Parameter posterior summaries"
+  if (length(pars) == 0L && family %in% c("binomial", "negative_binomial") && !is.null(fit$beta_samples)) {
+    beta <- as.data.frame(fit$beta_samples)
+    beta <- beta[beta$iter >= burn_in, , drop = FALSE]
+    beta_names <- setdiff(names(beta), c("chain", "iter"))
+    beta_names <- beta_names[vapply(beta_names, function(nm) any(is.finite(beta[[nm]])), logical(1))]
+    if (length(beta_names) > 0L) {
+      summary_source <- beta
+      pars <- beta_names
+      summary_label <- "Beta posterior summaries"
+    }
+  }
   if (length(pars) == 0L) stop("No requested parameters have finite retained samples.")
 
   # ------------------------------------------------
@@ -31,7 +46,7 @@ summary.cos_fit <- function(object,
   # ------------------------------------------------
 
   theta_summary <- t(vapply(pars, function(nm) {
-    stats::quantile(theta[[nm]], probs = probs, na.rm = TRUE)
+    stats::quantile(summary_source[[nm]], probs = probs, na.rm = TRUE)
   }, numeric(length(probs))))
 
   colnames(theta_summary) <- paste0(100 * probs, "%")
@@ -60,8 +75,10 @@ summary.cos_fit <- function(object,
     batch_length = fit$sampler$batch_length,
     n_retained = nrow(theta),
     theta_summary = theta_summary,
+    summary_label = summary_label,
     chain_summary = chain_summary,
     spatial = spatial,
+    family = family,
     priors = fit$priors
   )
 
@@ -75,13 +92,14 @@ print.summary.cos_fit <- function(x, ...) {
   } else {
     cat("Non-spatial COS fit\n")
   }
+  cat("  family:        ", x$family, "\n", sep = "")
   cat("  chains:        ", x$n_chains, "\n", sep = "")
   cat("  batches:       ", x$n_batch, "\n", sep = "")
   cat("  batch length:  ", x$batch_length, "\n", sep = "")
   cat("  burn-in start: ", x$burn_in, "\n", sep = "")
   cat("  retained draws:", x$n_retained, "\n\n", sep = "")
 
-  cat("Theta posterior summaries:\n")
+  cat(x$summary_label, ":\n", sep = "")
   print(x$theta_summary)
 
   cat("\nChain summaries:\n")
@@ -199,6 +217,7 @@ summary.cos_prep <- function(object, digits = 3, ...) {
     spatial = spatial,
     gamma = prep$gamma,
     taper_code = prep$taper_code,
+    missing = prep$missing,
     row_sum_summary = row_sum_summary,
     row_sums = row_sums
   )
@@ -220,6 +239,9 @@ print.summary.cos_prep <- function(x, ...) {
     cat("  gamma:               ", x$gamma, "\n", sep = "")
     cat("  taper_code:          ", x$taper_code, "\n", sep = "")
   }
+  if (!is.null(x$missing)) {
+    cat("  missing:             ", x$missing, "\n", sep = "")
+  }
   cat("\n")
 
   cat("H_BA row-sum summary:\n")
@@ -236,7 +258,8 @@ summary.cos_prediction_fine <- function(object, digits = 3, ...) {
 
   out <- list(
     call = pred$call,
-    method = pred$method,
+    spatial_uncertainty = pred$spatial_uncertainty,
+    uncertainty = pred$uncertainty,
     target = pred$target,
     n_pred = pred$n_pred,
     n_samples = pred$n_samples,
@@ -264,7 +287,10 @@ print.summary.cos_prediction_fine <- function(x, ...) {
   } else {
     cat("Non-spatial COS fine prediction/recovery\n")
   }
-  cat("  method:          ", x$method, "\n", sep = "")
+  cat("  spatial uncertainty: ", x$spatial_uncertainty, "\n", sep = "")
+  if (!is.null(x$uncertainty$note)) {
+    cat("  uncertainty:     ", x$uncertainty$note, "\n", sep = "")
+  }
   cat("  target:          ", x$target, "\n", sep = "")
   cat("  prediction cells:", x$n_pred, "\n", sep = "")
   cat("  posterior draws: ", x$n_samples, "\n", sep = "")
@@ -305,6 +331,7 @@ summary.cos_areal_blocks <- function(object, digits = 3, ...) {
     call = U_blocks$call,
     n_U = length(U_blocks$blocks),
     x_names = U_blocks$x_names,
+    missing = U_blocks$missing,
     row_sum_summary = row_sum_summary,
     n_cell_summary = n_cell_summary,
     row_sums = row_sums
@@ -318,6 +345,9 @@ print.summary.cos_areal_blocks <- function(x, ...) {
   cat("Tapered COS areal prediction blocks\n")
   cat("  prediction supports U: ", x$n_U, "\n", sep = "")
   cat("  covariates:            ", paste(x$x_names, collapse = ", "), "\n\n", sep = "")
+  if (!is.null(x$missing)) {
+    cat("  missing:              ", x$missing, "\n\n", sep = "")
+  }
 
   cat("H_UA row-sum summary:\n")
   print(x$row_sum_summary)
@@ -341,7 +371,8 @@ summary.cos_prediction_areal <- function(object, digits = 3, ...) {
 
   out <- list(
     call = pred$call,
-    method = pred$method,
+    spatial_uncertainty = pred$spatial_uncertainty,
+    uncertainty = pred$uncertainty,
     target = pred$target,
     n_U = pred$n_U,
     n_samples = pred$n_samples,
@@ -370,7 +401,10 @@ print.summary.cos_prediction_areal <- function(x, ...) {
   } else {
     cat("Non-spatial COS areal prediction\n")
   }
-  cat("  method:          ", x$method, "\n", sep = "")
+  cat("  spatial uncertainty: ", x$spatial_uncertainty, "\n", sep = "")
+  if (!is.null(x$uncertainty$note)) {
+    cat("  uncertainty:     ", x$uncertainty$note, "\n", sep = "")
+  }
   cat("  target:          ", x$target, "\n", sep = "")
   cat("  prediction units:", x$n_U, "\n", sep = "")
   cat("  posterior draws: ", x$n_samples, "\n", sep = "")

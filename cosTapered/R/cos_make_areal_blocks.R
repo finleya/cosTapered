@@ -1,6 +1,7 @@
 cos_make_areal_blocks <- function(U_sf,
                                   X_rast,
                                   id_col = NULL,
+                                  missing = c("error", "drop", "renormalize"),
                                   row_sum_tol = 1e-5,
                                   verbose = TRUE) {
   t_start <- proc.time()
@@ -30,6 +31,7 @@ cos_make_areal_blocks <- function(U_sf,
   if (!requireNamespace("exactextractr", quietly = TRUE)) {
     stop("Package exactextractr is required.")
   }
+  missing <- match.arg(missing)
 
   x_names <- names(X_rast)
   if (is.null(x_names) || anyNA(x_names) || any(x_names == "")) {
@@ -113,8 +115,12 @@ cos_make_areal_blocks <- function(U_sf,
     keep <- stats::complete.cases(df[, x_names, drop = FALSE])
     df <- df[keep, , drop = FALSE]
     if (nrow(df) == 0L) {
-      blocks[[k]] <- NULL
-      next
+      if (missing == "error") {
+        stop("Areal prediction unit ", k, " has no complete raster covariate cells.")
+      } else {
+        blocks[[k]] <- NULL
+        next
+      }
     }
 
     # Aggregate in case exact extraction returns duplicate cell records.
@@ -139,10 +145,25 @@ cos_make_areal_blocks <- function(U_sf,
     storage.mode(coords) <- "double"
 
     h <- as.numeric(df2$h)
+    row_sum <- sum(h)
+
+    if (row_sum < 1 - row_sum_tol && missing == "error") {
+      stop(
+        "Incomplete X_rast values leave areal prediction support weights below 1 for unit ",
+        k, ". Use missing = 'drop' to keep the covered-cell weights or ",
+        "missing = 'renormalize' to average over covered cells only."
+      )
+    }
+    if (missing == "renormalize") {
+      if (!is.finite(row_sum) || row_sum <= 0) {
+        stop("Cannot renormalize support weights because areal prediction unit ", k, " has no complete raster cells.")
+      }
+      h <- h / row_sum
+      row_sum <- sum(h)
+    }
+
     X_U <- as.numeric(crossprod(h, X_UA))
     names(X_U) <- x_names
-
-    row_sum <- sum(h)
 
     if (row_sum < 1 - row_sum_tol) {
       warning("Some H_UA rows sum to less than 1. Weights are left as constructed; inspect summary(U_blocks)$row_sum_summary.")
@@ -189,6 +210,7 @@ cos_make_areal_blocks <- function(U_sf,
     blocks = blocks,
     row_sums = row_sums,
     x_names = x_names,
+    missing = missing,
     timing = timing,
     call = match.call()
   )
