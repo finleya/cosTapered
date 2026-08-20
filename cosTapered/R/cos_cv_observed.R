@@ -30,6 +30,11 @@ cos_cv_observed <- function(fit,
   if (anyDuplicated(target)) {
     target <- unique(target)
   }
+  family <- fit$family
+  if (is.null(family)) family <- "gaussian"
+  if (!identical(family, "gaussian") && "observed" %in% target) {
+    stop("target = 'observed' in cos_cv_observed() is currently only implemented for Gaussian fits.")
+  }
   missing <- match.arg(missing)
 
   if (is.null(B_sf)) {

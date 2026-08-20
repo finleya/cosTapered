@@ -24,7 +24,9 @@ cos_predict_fine <- function(fit,
   spatial_uncertainty <- match.arg(spatial_uncertainty)
   target <- match.arg(target)
   keep_samples <- isTRUE(keep_samples)
-  if (!fit$family %in% c("gaussian", "negative_binomial") && target == "observed") {
+  family <- fit$family
+  if (is.null(family)) family <- "gaussian"
+  if (!family %in% c("gaussian", "negative_binomial") && target == "observed") {
     stop("target = 'observed' is currently only implemented for Gaussian and negative-binomial fits.")
   }
   offset_supplied <- !is.null(offset_pred)
@@ -67,7 +69,7 @@ cos_predict_fine <- function(fit,
   if (length(offset_pred) != nrow(X_pred) || any(!is.finite(offset_pred))) {
     stop("offset_pred must be NULL or a finite numeric vector of length one or nrow(X_pred).")
   }
-  if (identical(fit$family, "gaussian") && offset_supplied) {
+  if (identical(family, "gaussian") && offset_supplied) {
     stop("offset_pred is used only with Polya-Gamma response families.")
   }
 
@@ -126,13 +128,13 @@ cos_predict_fine <- function(fit,
     stop("ncol(X_pred) must match the number of recovered beta coefficients.")
   }
   if (spatial_uncertainty == "joint" && as.double(n_pred) * as.double(n_pred) > .Machine$integer.max) {
-    if (identical(fit$family, "gaussian")) {
+    if (identical(family, "gaussian")) {
       stop("spatial_uncertainty = 'joint' requires a dense n_pred x n_pred covariance matrix; use fewer prediction cells or spatial_uncertainty = 'marginal'.")
     }
   }
 
-  if (fit$family %in% c("binomial", "negative_binomial")) {
-    is_nb <- identical(fit$family, "negative_binomial")
+  if (family %in% c("binomial", "negative_binomial")) {
+    is_nb <- identical(family, "negative_binomial")
     if (!is_nb && target != "latent") {
       stop("Binomial fine prediction currently uses target = 'latent' and reports link-scale eta and response probability p.")
     }

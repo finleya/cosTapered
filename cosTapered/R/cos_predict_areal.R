@@ -26,7 +26,9 @@ cos_predict_areal <- function(fit,
   spatial_uncertainty <- match.arg(spatial_uncertainty)
   target <- match.arg(target)
   keep_samples <- isTRUE(keep_samples)
-  if (!fit$family %in% c("gaussian", "negative_binomial") && target == "observed") {
+  family <- fit$family
+  if (is.null(family)) family <- "gaussian"
+  if (!family %in% c("gaussian", "negative_binomial") && target == "observed") {
     stop("target = 'observed' is currently only implemented for Gaussian and negative-binomial fits.")
   }
   offset_supplied <- !is.null(offset_U)
@@ -97,7 +99,7 @@ cos_predict_areal <- function(fit,
   if (length(offset_U) != n_u || any(!is.finite(offset_U))) {
     stop("offset_U must be NULL, a column name in U_blocks$U_sf, or a finite numeric vector of length one or length(U_blocks$blocks).")
   }
-  if (identical(fit$family, "gaussian") && offset_supplied) {
+  if (identical(family, "gaussian") && offset_supplied) {
     stop("offset_U is used only with Polya-Gamma response families.")
   }
 
@@ -117,8 +119,8 @@ cos_predict_areal <- function(fit,
     stop("U_blocks covariates are not compatible with the fitted covariates.")
   }
 
-  if (fit$family %in% c("binomial", "negative_binomial")) {
-    is_nb <- identical(fit$family, "negative_binomial")
+  if (family %in% c("binomial", "negative_binomial")) {
+    is_nb <- identical(family, "negative_binomial")
     if (!is_nb && target != "latent") {
       stop("Binomial areal prediction currently uses target = 'latent' and reports link-scale eta and response probability p.")
     }

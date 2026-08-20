@@ -103,6 +103,61 @@ test_that("cos_prepare handles incomplete raster support explicitly", {
   )
 })
 
+test_that("cos_prepare renormalize errors when one of several B units is fully missing", {
+  skip_if_not_installed("sf")
+  skip_if_not_installed("raster")
+  skip_if_not_installed("exactextractr")
+
+  chm_file <- system.file("extdata", "example_chm.tif", package = "cosTapered")
+  B_file <- system.file("extdata", "example_B.gpkg", package = "cosTapered")
+  if (chm_file == "") {
+    chm_file <- testthat::test_path("..", "..", "inst", "extdata", "example_chm.tif")
+  }
+  if (B_file == "") {
+    B_file <- testthat::test_path("..", "..", "inst", "extdata", "example_B.gpkg")
+  }
+  skip_if(!file.exists(chm_file) || !file.exists(B_file), "example data not installed")
+
+  chm <- raster::raster(chm_file)
+  names(chm) <- "chm"
+  B_sf <- sf::st_read(B_file, quiet = TRUE)[seq_len(2), ]
+
+  ex1 <- suppressWarnings(
+    exactextractr::exact_extract(chm, B_sf[1, ], include_cell = TRUE)
+  )[[1]]
+  ex1 <- ex1[is.finite(ex1$coverage_fraction) & ex1$coverage_fraction > 0, , drop = FALSE]
+  ex2 <- suppressWarnings(
+    exactextractr::exact_extract(chm, B_sf[2, ], include_cell = TRUE)
+  )[[1]]
+  ex2 <- ex2[is.finite(ex2$coverage_fraction) & ex2$coverage_fraction > 0, , drop = FALSE]
+  skip_if(nrow(ex1) == 0L || nrow(ex2) == 0L, "test polygons have no raster overlap")
+  skip_if(any(ex1$cell %in% ex2$cell), "test polygons share raster cells")
+
+  # Knock out every cell under B_sf[1, ] so that unit is fully missing,
+  # while B_sf[2, ] keeps complete coverage.
+  chm_bad <- chm
+  chm_bad[ex1$cell] <- NA_real_
+  names(chm_bad) <- "chm"
+
+  intercept <- chm_bad
+  intercept[] <- ifelse(is.na(raster::getValues(chm_bad)), NA_real_, 1)
+  names(intercept) <- "intercept"
+  X_bad <- raster::stack(intercept, chm_bad)
+  names(X_bad) <- c("intercept", "chm")
+
+  expect_error(
+    cos_prepare(
+      X_rast = X_bad,
+      B_sf = B_sf,
+      response_col = "y_B",
+      spatial = FALSE,
+      missing = "renormalize",
+      verbose = FALSE
+    ),
+    "Cannot renormalize"
+  )
+})
+
 test_that("cos_make_areal_blocks handles incomplete raster support explicitly", {
   skip_if_not_installed("sf")
   skip_if_not_installed("raster")

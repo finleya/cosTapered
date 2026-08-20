@@ -34,11 +34,15 @@
 \author{Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee}
 \date{Updated \today}
 
+% Cover-page layout controls. Increase \coverlogolift to move the logo up.
+\newcommand{\coverlogolift}{0.15in}
+\newcommand{\coverlogowidth}{0.42\textwidth}
+
 \begin{document}
 \pagenumbering{gobble}
 \begin{titlepage}
   \centering
-  \vspace*{1.0in}
+  \vspace*{0.65in}
   {\Huge\bfseries \texttt{cosTapered}\par}
   \vspace{0.35in}
   {\LARGE Model and Software Details\par}
@@ -48,6 +52,8 @@
   {\large Updated \today\par}
   \vfill
   {\large Bayesian change-of-support modeling with tapered exponential covariance\par}
+  \vspace*{-\coverlogolift}
+  \includegraphics[width=\coverlogowidth]{figures/logo.png}
   \vfill
 \end{titlepage}
 
@@ -600,11 +606,18 @@ posterior mean displays, but it omits residual conditional prediction
 uncertainty and gives intervals that are too narrow if interpreted as full
 prediction uncertainty. Computational expense should be considered after the
 estimand is chosen, not as the rule for choosing the estimand.
+For negative-binomial fits, \texttt{target = "latent"} summarizes the mean
+count, while \texttt{target = "observed"} simulates count draws from the
+fitted negative-binomial likelihood.
 
-Figure~\ref{fig:prediction_decision} summarizes these decisions. Box color
-identifies what kind of prediction sample is being represented: plug-in
-conditional means, independent marginal prediction-unit samples, or joint
-fine-support Gaussian samples.
+Figure~\ref{fig:prediction_decision} summarizes the Gaussian and binomial
+spatial-uncertainty paths. Negative-binomial prediction follows the same
+Polya-Gamma \texttt{conditional\_mean} or \texttt{marginal}
+spatial-uncertainty choices as binomial, with mean-count summaries for
+\texttt{target = "latent"} and count draws for \texttt{target = "observed"}.
+Box color identifies what kind of prediction sample is being represented:
+plug-in conditional means, independent marginal prediction-unit samples, or
+joint fine-support Gaussian samples.
 
 \begin{figure}[p]
 \centering
@@ -718,14 +731,15 @@ fine-support Gaussian samples.
 \draw[arrow] (ab) -- (abmean);
 \end{tikzpicture}
 }
-\caption{Prediction choices in \texttt{cosTapered}. The key distinction is
-whether samples represent conditional means, independent marginal uncertainty
-for each prediction unit, or a joint fine-support Gaussian surface. Gray boxes
-are plug-in conditional-mean summaries. Blue boxes are marginal prediction-unit
-summaries, appropriate for stand, polygon, or cell estimates interpreted one
-unit at a time. Purple boxes are joint fine-support samples for summaries that
-combine cells. Runtime can differ substantially among paths, but the
-inferential target should determine the choice.}
+\caption{Prediction uncertainty choices for Gaussian and binomial paths in
+\texttt{cosTapered}. The key distinction is whether samples represent
+conditional means, independent marginal uncertainty for each prediction unit,
+or a joint fine-support Gaussian surface. Gray boxes are plug-in
+conditional-mean summaries. Blue boxes are marginal prediction-unit summaries,
+appropriate for stand, polygon, or cell estimates interpreted one unit at a
+time. Purple boxes are joint fine-support samples for summaries that combine
+cells. Runtime can differ substantially among paths, but the inferential
+target should determine the choice.}
 \label{fig:prediction_decision}
 \end{figure}
 \clearpage

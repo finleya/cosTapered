@@ -1,8 +1,9 @@
 # cosTapered
 
-`cosTapered` fits Bayesian change-of-support spatial models for forest
-inventory and remote-sensing problems where responses, predictors, and
-prediction targets live on different spatial supports.
+`cosTapered` implements and expands on the Bayesian change-of-support methods
+of Zhang et al. (2024) for forest inventory and remote-sensing problems where
+responses, predictors, and prediction targets live on different spatial
+supports.
 
 The motivating case is common in forest applications: LiDAR-derived predictors
 are available on a fine raster grid, field responses are observed on larger
@@ -15,12 +16,12 @@ area-weighted averages.
 ![Example CHM raster, stand polygons, observed plots, and simulated plot response](README_files/example-supports.png)
 
 Plots and stands are treated symmetrically: both are averages of the same
-fine-scale process over their footprints. The main Gaussian response model
-uses a tapered exponential covariance for spatial residual variation so that
-large raster and polygon-support problems remain computationally manageable.
-An experimental binomial logit response path is also available for binary or
-binomial observed-support responses, along with a fixed-size
-negative-binomial path for count responses.
+fine-support latent process over their footprints. The main Gaussian response
+model uses a tapered exponential covariance for spatial residual variation so
+that large raster and polygon-support problems remain computationally
+manageable. Experimental binomial logit and fixed-size negative-binomial
+response paths are also available for observed-support binary, binomial, and
+count responses.
 
 ![Example fine-support and stand-support latent predictions](README_files/fine-prediction.png)
 
@@ -33,10 +34,11 @@ negative-binomial path for count responses.
 - Recover observed-support latent quantities with `cos_recover_B()`.
 - Predict fine-support or areal-support targets with `cos_predict_fine()` and
   `cos_predict_areal()`.
-- Choose latent or observed prediction targets with `target = "latent"` or
-  `target = "observed"`.
+- Choose latent or observed prediction targets, where supported, with
+  `target = "latent"` or `target = "observed"`.
 - Choose how unobserved spatial prediction uncertainty is handled with
-  `spatial_uncertainty = "conditional_mean"`, `"marginal"`, or `"joint"`.
+  `spatial_uncertainty = "conditional_mean"`, `"marginal"`, or `"joint"`
+  where supported by the response family.
 - Run observed-support K-fold validation with `cos_cv_observed()`.
 
 ## Installation
@@ -169,15 +171,20 @@ system.file("doc", "cosTapered.pdf", package = "cosTapered")
 
 ## Model Scope
 
-The current package supports the standard tapered exponential covariance and a
-proper normal prior for regression coefficients. Users supply the raster
-design matrix they want the model to use; `cosTapered` does not automatically
-add intercepts, scale covariates, or buffer points.
+The current package supports a tapered exponential covariance with Wendland or
+spherical compact tapers and a proper normal prior for regression
+coefficients. Users supply the raster design matrix they want the model to
+use; `cosTapered` does not automatically add intercepts, scale covariates, or
+buffer points.
 
-Prediction functions can return either the underlying support average or the
-observed response on that support. Use `target = "latent"` for the underlying
-mean response, denoted eta in the model, and `target = "observed"` when the
-prediction should include support-level nugget variation.
+Prediction functions distinguish the underlying support average from an
+observed-scale prediction. For Gaussian fits, use `target = "latent"` for the
+underlying mean response, denoted eta in the model, and
+`target = "observed"` when the prediction should include finite-cell or
+support-averaged nugget variation. Binomial prediction currently reports the
+latent link scale and response probability. Negative-binomial prediction uses
+`target = "latent"` for the expected count and `target = "observed"` for a
+future or replicated count draw.
 
 The main prediction choices are:
 
@@ -201,15 +208,17 @@ flowchart TD
   I --> L{target}
   H --> M[latent link eta and probability p]
   J --> N[latent link eta and probability p]
-  NB --> NBF[latent link eta and mean count mu]
-  NBU --> NBA[latent link eta and mean count mu]
+  NB --> NBK{target}
+  NBU --> NBL{target}
 
   K --> O[latent eta]
   K --> P[observed y = eta + nugget]
   L --> Q[latent eta]
   L --> R[observed y = eta + support nugget]
-  NBF --> NBY[observed count y via NB sampling]
-  NBA --> NBU_Y[observed count y via NB sampling]
+  NBK --> NBF[latent link eta and mean count mu]
+  NBK --> NBY[observed count y via NB sampling]
+  NBL --> NBA[latent link eta and mean count mu]
+  NBL --> NBU_Y[observed count y via NB sampling]
 
   O --> S{spatial_uncertainty}
   P --> S
@@ -217,6 +226,10 @@ flowchart TD
   R --> T
   M --> U{spatial_uncertainty}
   N --> V{spatial_uncertainty}
+  NBF --> NBFS{spatial_uncertainty}
+  NBY --> NBFS
+  NBA --> NBAS{spatial_uncertainty}
+  NBU_Y --> NBAS
 
   S --> W[conditional_mean: plug-in surface]
   S --> X[marginal: per-cell uncertainty]
@@ -227,8 +240,10 @@ flowchart TD
   U --> AD[marginal: per-cell probability uncertainty]
   V --> AC[conditional_mean: plug-in areal probabilities]
   V --> AE[marginal: per-unit probability uncertainty]
-  NBF --> NBFM[marginal: per-cell mean-count uncertainty]
-  NBA --> NBAM[marginal: per-unit mean-count uncertainty]
+  NBFS --> NBFC[conditional_mean: plug-in spatial effect]
+  NBFS --> NBFM[marginal: per-cell spatial uncertainty]
+  NBAS --> NBAC[conditional_mean: plug-in spatial effect]
+  NBAS --> NBAM[marginal: per-unit spatial uncertainty]
 ```
 
 For Gaussian fine-support prediction, `spatial_uncertainty = "joint"` draws
@@ -247,11 +262,9 @@ augmentation through `BayesLogit`. Binomial prediction reports link-scale
 summaries and response probability summaries. Negative-binomial prediction
 uses a fixed `size` parameter, supports offsets such as log exposure, reports
 link-scale and mean-count summaries with `target = "latent"`, and can
-simulate observed count predictions with `target = "observed"`.
-
-## Package Source
-
-The R package source is in `cosTapered/`.
+simulate observed count predictions with `target = "observed"`. The
+Polya-Gamma response paths support `spatial_uncertainty = "conditional_mean"`
+and `"marginal"`; they do not produce joint prediction surfaces.
 
 ## Reference
 

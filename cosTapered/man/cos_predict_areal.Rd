@@ -1,6 +1,6 @@
 \name{cos_predict_areal}
 \alias{cos_predict_areal}
-\title{Predict Areal-Support Latent Quantities}
+\title{Predict Areal-Support Quantities}
 \usage{
 cos_predict_areal(fit, rec_B, U_blocks, offset_U = NULL,
   spatial_uncertainty = c("conditional_mean", "marginal"),
@@ -23,9 +23,9 @@ prediction uncertainty. \code{"marginal"} draws independent marginal
 conditional effects for each areal unit, but samples are not joint across
 units.}
 \item{target}{Prediction target. For Gaussian fits, \code{"latent"} returns
-latent areal means \code{eta_U = X_U beta + omega_U}, while
-\code{"observed"} also adds independent support-level nugget draws with
-variance \code{tau_sq * sum(h^2)} for each prediction support. For
+latent areal means \eqn{\eta(U_k)=\sum_i g_{ki}\eta(A_i)}, while
+\code{"observed"} also adds independent support-averaged nugget draws with
+variance \eqn{\tau^2\sum_i g_{ki}^2} for prediction support \eqn{U_k}. For
 negative-binomial fits, \code{"latent"} summarizes the log mean \code{eta}
 and mean count \code{mu = exp(eta)}, while \code{"observed"} also simulates
 count draws from the fitted negative-binomial likelihood.}

@@ -65,17 +65,20 @@ Fits a COS model. For \code{family = "gaussian"}, this fits the collapsed
 posterior. Spatial preparation objects fit
 \code{tau_B_sq}, \code{sigma_sq}, and \code{phi}. Non-spatial preparation
 objects fit the COS submodel without spatial random effects and sample only
-\code{tau_B_sq}. The fine-scale nugget variance \code{tau_sq} is recovered
+\code{tau_B_sq}. The fine-support nugget variance \code{tau_sq} is recovered
 from \code{tau_B_sq / mean(diag(D_h))}.
 
 For \code{family = "binomial"}, the sampler uses Polya-Gamma augmentation on
 the observed support, with linear predictor
+\eqn{\eta_l = offset_l + x_B(B_l)^\top\beta + \omega_B(B_l)} for observed
+support \eqn{B_l}. Stacked over supports, this is
 \code{eta_B = offset + X_B beta + omega_B}. This first implementation keeps
 \code{beta} and \code{omega_B} explicit in the Markov state. There is no
 Gaussian nugget variance \code{tau_sq} in the binomial likelihood.
 
 For \code{family = "negative_binomial"}, the sampler uses a fixed-size
-negative-binomial likelihood with mean \code{mu_B = exp(eta_B)} and
+negative-binomial likelihood with mean \eqn{\mu_l = \exp(\eta_l)} on observed
+support \eqn{B_l}. Stacked over supports,
 \code{eta_B = offset + X_B beta + omega_B}. The size parameter is fixed by
 the \code{size} argument. There is no Gaussian nugget variance
 \code{tau_sq} in this likelihood.

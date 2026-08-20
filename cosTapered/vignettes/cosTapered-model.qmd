@@ -605,7 +605,13 @@ estimand, first dissolve those boundaries to the union support and predict that
 union. Do not create uncertainty for the collection by adding independently
 drawn marginal predictions from separate stands.
 
-```{r prediction-decision-figure, echo = FALSE, out.width = "100%", fig.cap = "Prediction choices in cosTapered. The key distinction is whether samples represent conditional means, independent marginal uncertainty for each prediction unit, or a joint fine-support Gaussian surface. Gray boxes are plug-in conditional-mean summaries. Blue boxes are marginal prediction-unit summaries, appropriate for stand, polygon, or cell estimates interpreted one unit at a time. Purple boxes are joint fine-support samples for summaries that combine cells. Runtime can differ substantially among paths, but the inferential target should determine the choice."}
+The figure below summarizes the Gaussian and binomial spatial-uncertainty
+paths. Negative-binomial prediction follows the same Polya-Gamma
+`conditional_mean` or `marginal` spatial-uncertainty choices as binomial,
+with mean-count summaries for `target = "latent"` and count draws for
+`target = "observed"`.
+
+```{r prediction-decision-figure, echo = FALSE, out.width = "100%", fig.cap = "Prediction uncertainty choices for Gaussian and binomial paths in cosTapered. The key distinction is whether samples represent conditional means, independent marginal uncertainty for each prediction unit, or a joint fine-support Gaussian surface. Gray boxes are plug-in conditional-mean summaries. Blue boxes are marginal prediction-unit summaries, appropriate for stand, polygon, or cell estimates interpreted one unit at a time. Purple boxes are joint fine-support samples for summaries that combine cells. Runtime can differ substantially among paths, but the inferential target should determine the choice."}
 knitr::include_graphics("figures/prediction_decision.png")
 ```
 
@@ -613,10 +619,11 @@ The choices mean:
 
 - `target = "latent"` summarizes the underlying support mean on the model
   scale.
-- `target = "observed"` adds the Gaussian nugget contribution on the requested
-  support: fine-cell nugget variation for fine predictions and support-averaged
-  nugget variation for areal predictions. This option is currently for Gaussian
-  fits.
+- For Gaussian fits, `target = "observed"` adds the Gaussian nugget
+  contribution on the requested support: fine-cell nugget variation for fine
+  predictions and support-averaged nugget variation for areal predictions. For
+  negative-binomial fits, `target = "observed"` simulates count draws around
+  the latent mean.
 - `spatial_uncertainty = "conditional_mean"` plugs in the conditional mean of
   unobserved spatial effects. It is a fitted-surface or plug-in summary, not a
   full prediction-uncertainty summary.

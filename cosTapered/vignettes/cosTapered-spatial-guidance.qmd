@@ -330,7 +330,7 @@ support.
 Use latent prediction when the target is the underlying support average:
 
 $$
-\eta_U =
+\eta(U_k) =
 \sum_i g_{ki}\{x(A_i)^\top\beta+\omega(A_i)\}.
 $$
 
@@ -343,13 +343,13 @@ Use observed prediction when the target is the measured response on the
 support:
 
 $$
-y_U = \eta_U+\epsilon_U.
+y(U_k) = \eta(U_k)+\epsilon(U_k).
 $$
 
-For areal support $U$, the nugget variance is
+For areal support $U_k$, the nugget variance is
 
 $$
-\mathrm{Var}(\epsilon_U)
+\mathrm{Var}\{\epsilon(U_k)\}
 =
 \tau^2\sum_i g_{ki}^2.
 $$

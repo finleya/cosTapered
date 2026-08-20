@@ -49,7 +49,8 @@ The response is generated as
 \deqn{y_B = X_B \beta + \omega_B + e_B,}
 \deqn{\omega_B \sim N(0, \sigma^2 C_B), \qquad
 e_B \sim N(0, \tau^2 D_h),}
-where \code{tau_sq = tau_B_sq / mean(diag(D_h))}.
+where \code{X_B = H_BA X} and
+\code{tau_sq = tau_B_sq / mean(diag(D_h))}.
 
 The bundled files documented in \code{\link{cosTapered-example-data}} were
 generated with this simulator using the same model settings shown in the

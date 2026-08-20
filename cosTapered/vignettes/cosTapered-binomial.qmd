@@ -28,34 +28,37 @@ uses Polya-Gamma augmentation and keeps `beta` and the observed-support spatial
 effect `omega_B` explicit in the sampler state.
 
 The example uses the package's bundled raster covariate and plot polygons. We
-simulate binary plot outcomes from a weak fine-scale covariate effect and a
+simulate binary plot outcomes from a weak fine-support covariate effect and a
 stronger spatial Gaussian process, fit the binomial COS model, and summarize
 predicted response probability over the fine grid.
 
 ## Model
 
-For observed support unit $B_i$, the first binomial implementation uses
+For observed support $B_l$, the first binomial implementation uses
 
 $$
-y_i \mid \eta_i \sim \mathrm{Binomial}(n_i, \mathrm{logit}^{-1}(\eta_i)),
+z_l \mid \eta_l, m_l
+\sim \mathrm{Binomial}\{m_l, \mathrm{logit}^{-1}(\eta_l)\},
 \qquad
-\eta_i = x_i^\top \beta + \omega_i,
+\eta_l = \mathbf{x}_B(B_l)^\top \beta + \omega_B(B_l),
 $$
 
-where $x_i$ is the observed-support covariate average from `cos_prepare()`.
-The spatial effect $\omega_B$ has the same tapered observed-support Gaussian
-process prior used by the Gaussian COS model. Conditional on Polya-Gamma
-weights, the sampler works with a Gaussian working response.
+where $z_l$ is the number of successes out of $m_l$ trials and
+$\mathbf{x}_B(B_l)^\top$ is row $l$ of the observed-support design matrix
+$X_B = H_{BA}X$ from `cos_prepare()`. The spatial effect $\omega_B$ has the
+same tapered observed-support Gaussian process prior used by the Gaussian COS
+model. Conditional on Polya-Gamma weights, the sampler works with a Gaussian
+working response.
 
 This model is on the observed support. It is not the same as averaging
-fine-scale probabilities over a polygon. That distinction matters for
+fine-support probabilities over a polygon. That distinction matters for
 interpretation and will remain explicit as response models are extended.
 
 ## Simulate binary plot data
 
 The code below constructs the raster design matrix, prepares the observed
 support, and simulates binary plot values. The covariate coefficient is small
-so the fine-scale covariate explains little of the binary response variation.
+so the fine-support covariate explains little of the binary response variation.
 Most spatial pattern comes from the Gaussian process.
 
 ```{r}

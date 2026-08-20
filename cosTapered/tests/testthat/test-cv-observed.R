@@ -108,3 +108,54 @@ test_that("observed-support CV returns scores", {
     "latent_col"
   )
 })
+
+test_that("cos_cv_observed rejects target = 'observed' for non-Gaussian families", {
+  X_B <- cbind(intercept = 1, x = c(-1.2, -0.4, 0.2, 0.9, 1.4, 1.8))
+  beta <- c(intercept = -0.2, x = 0.9)
+  eta <- as.numeric(X_B %*% beta)
+  trials <- c(5L, 7L, 6L, 8L, 5L, 6L)
+  y_B <- c(1, 2, 3, 6, 4, 5)
+
+  prep <- list(
+    y_B = y_B,
+    X_B = X_B,
+    D_h = diag(length(y_B)),
+    spatial = FALSE,
+    n_threads = 1L,
+    B_sf = data.frame(y_B = y_B, trials = trials),
+    eta_true = eta,
+    C_B_pairs = NULL
+  )
+  class(prep) <- "cos_prep"
+
+  priors <- cos_default_priors(
+    prep = prep,
+    beta_mu = c(intercept = 0, x = 0),
+    beta_sd = c(intercept = 2, x = 2)
+  )
+
+  fit <- cos_fit(
+    prep = prep,
+    priors = priors,
+    family = "binomial",
+    trials = prep$B_sf$trials,
+    n_batch = 2,
+    batch_length = 2,
+    seed = 21,
+    verbose = FALSE
+  )
+
+  B_sf <- data.frame(y_B = y_B)
+
+  expect_error(
+    cos_cv_observed(
+      fit = fit,
+      X_rast = raster::raster(matrix(1)),
+      B_sf = B_sf,
+      target = "observed",
+      k = 2,
+      verbose = FALSE
+    ),
+    "cos_cv_observed\\(\\) is currently only implemented for Gaussian fits"
+  )
+})

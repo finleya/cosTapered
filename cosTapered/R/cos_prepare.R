@@ -190,11 +190,10 @@ cos_prepare <- function(X_rast,
     )
   }
   if (missing == "renormalize") {
-    row_lookup <- kept_row_sum[trip$B_id]
-    if (any(!is.finite(row_lookup) | row_lookup <= 0)) {
+    if (any(!is.finite(kept_row_sum) | kept_row_sum <= 0)) {
       stop("Cannot renormalize support weights because at least one observed support has no complete raster cells.")
     }
-    trip$h <- trip$h / row_lookup
+    trip$h <- trip$h / kept_row_sum[trip$B_id]
   }
 
   A_df$A_id <- seq_len(nrow(A_df))

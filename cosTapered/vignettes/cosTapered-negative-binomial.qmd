@@ -42,29 +42,30 @@ observed-support spatial effect `omega_B` explicit in the sampler state, and
 uses a user-supplied negative-binomial `size` parameter.
 
 The example uses the package's bundled raster covariate and plot polygons. We
-simulate plot counts from a weak fine-scale covariate effect, a stronger
+simulate plot counts from a weak fine-support covariate effect, a stronger
 spatial Gaussian process, and a log-exposure offset. We then fit the model,
 predict the mean count over the full fine raster domain, and summarize counts
 on areal prediction polygons.
 
 ## Model
 
-For observed support unit $B_i$, the fixed-size negative-binomial model is
+For observed support $B_l$, the fixed-size negative-binomial model is
 
 $$
-y_i \mid \eta_i, r \sim \mathrm{NegBin}(r, \mu_i),
+y_l \mid \eta_l, r \sim \mathrm{NegBin}(r, \mu_l),
 \qquad
-\mu_i = \exp(\eta_i),
+\mu_l = \exp(\eta_l),
 \qquad
-\eta_i = o_i + x_i^\top \beta + \omega_i,
+\eta_l = o_l + \mathbf{x}_B(B_l)^\top \beta + \omega_B(B_l),
 $$
 
-where $r$ is the supplied `size` parameter, $o_i$ is an optional offset such
-as log exposure, and $x_i$ is the observed-support covariate average produced
-by `cos_prepare()`. The spatial effect $\omega_B$ has the same tapered
-observed-support Gaussian process prior used by the Gaussian COS model.
+where $r$ is the supplied `size` parameter, $o_l$ is an optional offset such
+as log exposure, and $\mathbf{x}_B(B_l)^\top$ is row $l$ of the
+observed-support design matrix $X_B = H_{BA}X$ produced by `cos_prepare()`.
+The spatial effect $\omega_B$ has the same tapered observed-support Gaussian
+process prior used by the Gaussian COS model.
 
-The package uses the `rnbinom(size = r, mu = mu_i)` parameterization. Larger
+The package uses the `rnbinom(size = r, mu = mu_l)` parameterization. Larger
 `size` values imply less overdispersion, and the Poisson limit is approached
 as `size` becomes large. The current implementation treats `size` as fixed,
 not estimated.
@@ -78,7 +79,7 @@ exposure used by the observed data and use compatible offsets for prediction.
 The code below constructs the raster design matrix, prepares the observed
 support, and simulates plot counts. The covariate coefficient is deliberately
 small so most spatial structure comes from the Gaussian process rather than
-the fine-scale canopy covariate.
+the fine-support canopy covariate.
 
 ```{r}
 #| eval: false

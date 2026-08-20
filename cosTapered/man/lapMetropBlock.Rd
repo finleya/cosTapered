@@ -29,7 +29,6 @@ information.
 }
 \examples{
 set.seed(1)
-library(ggplot2)
 
 # Target a correlated bivariate normal so the block sampler has something
 # nontrivial to learn.
@@ -87,27 +86,31 @@ path_df <- do.call(rbind, lapply(seq_along(starts), function(ch) {
 }))
 
 # The paths should move in from the sides and the point cloud should fill in
-# the target shape over time.
-ggplot(draws, aes(x = x, y = y, group = chain, color = chain)) +
-  geom_path(data = path_df, aes(x = x, y = y, group = chain, color = chain),
-            linewidth = 0.5, alpha = 0.8) +
-  geom_point(alpha = 0.05, size = 0.7) +
-  geom_point(data = start_df, shape = 4, size = 2.5, stroke = 1) +
-  geom_point(
-    data = data.frame(x = mu["x"], y = mu["y"]),
-    aes(x = x, y = y),
-    inherit.aes = FALSE,
-    shape = 8,
-    size = 2.6,
-    color = "black"
-  ) +
-  coord_equal(xlim = c(-7, 7), ylim = c(-7, 12), expand = FALSE) +
-  labs(
-    title = "Adaptive block Metropolis chains moving into a correlated target",
-    subtitle = "Colored paths show chains; faint points show all draws",
-    x = "x",
-    y = "y",
-    color = "chain"
-  ) +
-  theme_minimal(base_size = 11)
+# the target shape over time. Plotting requires the suggested ggplot2 package.
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  library(ggplot2)
+
+  ggplot(draws, aes(x = x, y = y, group = chain, color = chain)) +
+    geom_path(data = path_df, aes(x = x, y = y, group = chain, color = chain),
+              linewidth = 0.5, alpha = 0.8) +
+    geom_point(alpha = 0.05, size = 0.7) +
+    geom_point(data = start_df, shape = 4, size = 2.5, stroke = 1) +
+    geom_point(
+      data = data.frame(x = mu["x"], y = mu["y"]),
+      aes(x = x, y = y),
+      inherit.aes = FALSE,
+      shape = 8,
+      size = 2.6,
+      color = "black"
+    ) +
+    coord_equal(xlim = c(-7, 7), ylim = c(-7, 12), expand = FALSE) +
+    labs(
+      title = "Adaptive block Metropolis chains moving into a correlated target",
+      subtitle = "Colored paths show chains; faint points show all draws",
+      x = "x",
+      y = "y",
+      color = "chain"
+    ) +
+    theme_minimal(base_size = 11)
+}
 }

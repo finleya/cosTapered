@@ -1,6 +1,6 @@
 \name{cos_predict_fine}
 \alias{cos_predict_fine}
-\title{Predict Fine-Support Latent Quantities}
+\title{Predict Fine-Support Quantities}
 \usage{
 cos_predict_fine(fit, rec_B, pred_coords = NULL, X_pred = NULL,
   offset_pred = NULL,
@@ -27,8 +27,8 @@ conditional effects for each prediction cell. \code{"joint"} draws the joint
 conditional spatial effect across fine prediction cells and can require a
 large dense covariance matrix.}
 \item{target}{Prediction target. For Gaussian fits, \code{"latent"} returns
-latent fine-scale means \code{eta_A = X_A beta + omega_A}, while
-\code{"observed"} also adds independent fine-scale nugget draws with variance
+latent fine-support means \code{eta_A = X_A beta + omega_A}, while
+\code{"observed"} also adds independent fine-support nugget draws with variance
 \code{tau_sq}. For negative-binomial fits, \code{"latent"} summarizes the log
 mean \code{eta} and mean count \code{mu = exp(eta)}, while
 \code{"observed"} also simulates count draws from the fitted
@@ -45,7 +45,7 @@ observed-support effects. For non-spatial fits the spatial effect is fixed at
 zero and predictions use recovered regression coefficients only.
 }
 \details{
-By default the function reports the latent fine-scale mean target. This is the
+By default the function reports the latent fine-support mean target. This is the
 usual target for mapping the underlying forest condition. Use
 \code{target = "observed"} when the desired posterior predictive target is a
 fine-support response with finite-cell nugget variation included.

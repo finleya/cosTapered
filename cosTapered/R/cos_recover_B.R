@@ -41,6 +41,9 @@ cos_recover_B <- function(fit,
   spatial <- isTRUE(fit$spatial)
   if (is.null(fit$spatial)) spatial <- TRUE
 
+  family <- fit$family
+  if (is.null(family)) family <- "gaussian"
+
   y_B <- as.numeric(prep$y_B)
   X_B <- as.matrix(prep$X_B)
   D_h <- as.matrix(prep$D_h)
@@ -95,7 +98,7 @@ cos_recover_B <- function(fit,
 
   n_save <- nrow(theta_keep)
 
-  if (fit$family %in% c("binomial", "negative_binomial")) {
+  if (family %in% c("binomial", "negative_binomial")) {
     beta_all <- as.data.frame(fit$beta_samples)
     omega_all <- as.data.frame(fit$omega_B_samples)
     eta_all <- as.data.frame(fit$eta_B_samples)

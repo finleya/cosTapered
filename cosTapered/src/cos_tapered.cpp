@@ -188,17 +188,22 @@ static void fill_C_B_from_pairs_cpp(double *C_B,
   if(n_threads > 1)
     omp_set_num_threads(n_threads);
 
+  bool invalid_index = false;
+
 #pragma omp parallel if(n_threads > 1)
   {
     std::vector<double> C_local(n_elem, 0.0);
+    bool local_invalid = false;
 
 #pragma omp for schedule(static)
     for(R_xlen_t r = 0; r < n_pair; r++){
       int l = pair_l[r] - 1;
       int k = pair_k[r] - 1;
 
-      if(l < 0 || l >= n_b || k < 0 || k >= n_b)
+      if(l < 0 || l >= n_b || k < 0 || k >= n_b){
+        local_invalid = true;
         continue;
+      }
 
       double val = pair_wtap[r] * std::exp(-phi * pair_d[r]);
 
@@ -210,10 +215,17 @@ static void fill_C_B_from_pairs_cpp(double *C_B,
 
 #pragma omp critical
     {
+      if(local_invalid)
+        invalid_index = true;
       for(R_xlen_t i = 0; i < n_elem; i++)
         C_B[i] += C_local[i];
     }
   }
+
+  /* Rf_error() must not be called from inside the parallel region, so the
+     out-of-range check is deferred until after all threads have joined. */
+  if(invalid_index)
+    Rf_error("pair_l or pair_k contains an out-of-range plot index");
 #else
   for(R_xlen_t r = 0; r < n_pair; r++){
     int l = pair_l[r] - 1;
@@ -1650,17 +1662,22 @@ extern "C" SEXP make_C_B_tapered_from_pairs(SEXP pair_l_r,
   if(n_threads > 1)
     omp_set_num_threads(n_threads);
 
+  bool invalid_index = false;
+
 #pragma omp parallel if(n_threads > 1)
   {
     std::vector<double> C_local(n_b * n_b, 0.0);
+    bool local_invalid = false;
 
 #pragma omp for schedule(static)
     for(R_xlen_t r = 0; r < n_pair; r++){
       int l = pair_l[r] - 1;
       int k = pair_k[r] - 1;
 
-      if(l < 0 || l >= n_b || k < 0 || k >= n_b)
+      if(l < 0 || l >= n_b || k < 0 || k >= n_b){
+        local_invalid = true;
         continue;
+      }
 
       double val = pair_wtap[r] * std::exp(-phi * pair_d[r]);
 
@@ -1672,10 +1689,17 @@ extern "C" SEXP make_C_B_tapered_from_pairs(SEXP pair_l_r,
 
 #pragma omp critical
     {
+      if(local_invalid)
+        invalid_index = true;
       for(int i = 0; i < n_b * n_b; i++)
         C_B[i] += C_local[i];
     }
   }
+
+  /* Rf_error() must not be called from inside the parallel region, so the
+     out-of-range check is deferred until after all threads have joined. */
+  if(invalid_index)
+    Rf_error("pair_l or pair_k contains an out-of-range plot index");
 #else
   for(R_xlen_t r = 0; r < n_pair; r++){
     int l = pair_l[r] - 1;
