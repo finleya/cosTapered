@@ -28,7 +28,8 @@ add intercepts, scale covariates, or buffer points automatically.
 
 The package vignettes provide the main workflow, model details, and spatial
 guidance. A model and software details document with compact model notation
-and posterior calculations is installed as \file{doc/cosTapered.pdf}.
+and posterior calculations is installed as \file{doc/cosTapered.pdf} when
+the package is built with vignettes.
 }
 \author{
 Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee.

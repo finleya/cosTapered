@@ -88,22 +88,23 @@ We focus on three user-facing questions:
 We answer these questions using a repeated simulation study based on the
 package example dataset. The design keeps the covariate raster, forest
 boundary, observed-support layout, and cross-validation folds fixed. It varies
-only the simulated spatial process and nugget realization across replicates
-and changes the effective range across scenarios.
+the simulated spatial process and nugget realization across replicates.
+Across range scenarios it changes both the exponential effective range and
+the taper distance, using `gamma = effective_range + 100` m. Thus the
+comparison reflects both covariance settings, not exponential range alone.
 
 ## Where the reproducibility code lives
 
 Long-running simulation code is not run inside this vignette because package
 users need vignettes to build quickly. The source code for the study is
-installed with the package, and selected figures are included in the vignette:
-
-* keep the vignette text and selected figures in `vignettes/`;
-* place long-running reproduction scripts in `inst/scripts/`, so they are
-  installed with the package and available through `system.file()`.
+installed with the package, and selected figures from the original study are
+included in the vignette. The numeric results below describe that saved study;
+they are not recomputed when the vignette is built.
 
 For this vignette, the installed reproduction script is:
 
 ```{r script-path}
+#| eval: false
 system.file("scripts", "spatial-cos-guidance-repeated-study.R",
             package = "cosTapered")
 ```
@@ -115,6 +116,14 @@ script <- system.file("scripts", "spatial-cos-guidance-repeated-study.R",
                       package = "cosTapered")
 source(script)
 ```
+
+The default run performs 50 replicates over nine range settings with ten
+folds for each of two Gaussian models. Results are written to
+`spatial-cos-guidance-output/` in the working directory. The script supports
+environment variables such as `CTV_N_REPS`, `CTV_EFF_RANGES`,
+`CTV_N_THREADS`, and `CTV_OUT_DIR` for smaller trial runs or a different
+output location. Its default thread count is 25; set `CTV_N_THREADS` to suit
+your machine.
 
 ## Prediction targets
 
@@ -235,9 +244,7 @@ CRPS than the nonspatial model.
 The next figure compares RMSPE and CRPS for spatial and nonspatial COS fits
 across the effective range grid.
 
-```{r accuracy-scoring, echo = FALSE, out.width = "95%", fig.cap = "Mean RMSPE and CRPS by effective range, prediction target, and model. RMSPE measures point-prediction error. CRPS scores the full predictive distribution, so it rewards predictions that are both accurate and appropriately uncertain."}
-knitr::include_graphics("figures/cv_accuracy_scoring.png")
-```
+![Mean RMSPE and CRPS by effective range, prediction target, and model. RMSPE measures point-prediction error. CRPS scores the full predictive distribution, so it rewards predictions that are both accurate and appropriately uncertain.](figures/cv_accuracy_scoring.png){width="95%"}
 
 The RMSPE panels show that the value of residual spatial modeling depends
 strongly on the range of the spatial process. At effective ranges of 25 to
@@ -261,13 +268,9 @@ not only a better posterior mean.
 Coverage is useful only when interpreted with interval width. The next two
 figures show 95% interval coverage and mean 95% interval width.
 
-```{r coverage, echo = FALSE, out.width = "95%", fig.cap = "Mean 95% interval coverage by effective range, prediction target, and model. The dashed line is nominal 95% coverage."}
-knitr::include_graphics("figures/cv_coverage_by_target_model.png")
-```
+![Mean 95% interval coverage by effective range, prediction target, and model. The dashed line is nominal 95% coverage.](figures/cv_coverage_by_target_model.png){width="95%"}
 
-```{r width, echo = FALSE, out.width = "95%", fig.cap = "Mean 95% interval width by effective range, prediction target, and model. Coverage should be judged together with interval width because wide intervals can produce high coverage without precise prediction."}
-knitr::include_graphics("figures/cv_interval_width_by_target_model.png")
-```
+![Mean 95% interval width by effective range, prediction target, and model. Coverage should be judged together with interval width because wide intervals can produce high coverage without precise prediction.](figures/cv_interval_width_by_target_model.png){width="95%"}
 
 For the latent target $\eta_B$, the nonspatial model undercovers badly. Mean
 coverage is roughly 0.41 to 0.62 across the range grid. This is expected:
@@ -291,9 +294,7 @@ intervals is more informative.
 The next figure summarizes spatial improvement in RMSPE and CRPS, together
 with win rates across the 50 repeated process realizations.
 
-```{r improvement-wins, echo = FALSE, out.width = "95%", fig.cap = "Mean percent improvement for the spatial model relative to the nonspatial model, and the proportion of repeated simulations in which the spatial model wins. Positive percent improvement means lower error for the spatial model."}
-knitr::include_graphics("figures/cv_improvement_and_win_rates.png")
-```
+![Mean percent improvement for the spatial model relative to the nonspatial model, and the proportion of repeated simulations in which the spatial model wins. Positive percent improvement means lower error for the spatial model.](figures/cv_improvement_and_win_rates.png){width="95%"}
 
 At short ranges, the spatial model is not consistently better for point
 prediction. For latent $\eta_B$, mean RMSPE improvement is slightly negative
@@ -311,9 +312,7 @@ stable improvements from averages driven by a few simulations. At 750 and
 The final figure gives a compact view of the mean improvement curves without
 the win-rate panels.
 
-```{r mean-improvement, echo = FALSE, out.width = "95%", fig.cap = "Mean spatial improvement in RMSPE and CRPS by effective range and prediction target."}
-knitr::include_graphics("figures/cv_replicate_improvement_curves.png")
-```
+![Mean spatial improvement in RMSPE and CRPS by effective range and prediction target.](figures/cv_replicate_improvement_curves.png){width="95%"}
 
 Spatial gains increase with effective range. They are larger and more
 consistent for CRPS than for RMSPE. They are generally larger for latent
@@ -335,9 +334,11 @@ $$
 $$
 
 This is often the relevant target for mapping forest condition, estimating
-stand means, ranking management units, or summarizing expected resource
-status. It excludes support-level nugget variation. In the package, this
-corresponds to `target = "latent"` in areal or fine prediction functions.
+stand means, or summarizing expected resource status. It excludes support-level
+nugget variation. In the package, this corresponds to `target = "latent"` in
+areal or fine prediction functions. Posterior rankings or contrasts across
+units require joint uncertainty; the package's marginal areal draws do not
+provide that cross-unit covariance.
 
 Use observed prediction when the target is the measured response on the
 support:

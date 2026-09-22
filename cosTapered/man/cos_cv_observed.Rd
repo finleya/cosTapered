@@ -46,7 +46,7 @@ returned object.}
 \item{verbose}{Logical; if \code{TRUE}, print fold progress.}
 }
 \description{
-Runs K-fold validation for observed-support prediction targets. Each fold
+Runs Gaussian K-fold validation for observed-support prediction targets. Each fold
 refits the model to the training observed supports and predicts the held-out
 supports using \code{\link{cos_predict_areal}}. By default, it scores
 observed-support responses with nugget variation included. In simulation
@@ -54,6 +54,9 @@ studies, it can also score latent held-out means when latent truth is supplied.
 }
 \details{
 Held-out observed supports are treated as areal prediction units. The function
+does not automatically propagate the family, trial counts, size, or offsets
+of a non-Gaussian fit to fold refits. Use this workflow for Gaussian models.
+The function
 uses \code{cos_predict_areal(spatial_uncertainty = "marginal",
 keep_samples = TRUE)} to draw latent areal means. For
 \code{target = "observed"}, it then adds independent nugget draws with

@@ -16,6 +16,8 @@ Description: Lightweight implementation of Bayesian change-of-support
     experimental Polya-Gamma paths for binomial and fixed-size
     negative-binomial responses.
 License: GPL-3
+URL: https://finleya.github.io/cosTapered/, https://github.com/finleya/cosTapered
+BugReports: https://github.com/finleya/cosTapered/issues
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
 Imports: sf, raster, exactextractr, Matrix, methods, BayesLogit (>= 2.4)
@@ -23,4 +25,5 @@ LinkingTo: BayesLogit (>= 2.4)
 Suggests: ggplot2, knitr, quarto, rmarkdown, testthat (>= 3.0.0)
 VignetteBuilder: knitr, quarto
 Config/testthat/edition: 3
+Config/Needs/website: pkgdown (>= 2.2.1)
 NeedsCompilation: yes

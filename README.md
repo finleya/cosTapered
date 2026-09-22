@@ -39,7 +39,7 @@ count responses.
 - Choose how unobserved spatial prediction uncertainty is handled with
   `spatial_uncertainty = "conditional_mean"`, `"marginal"`, or `"joint"`
   where supported by the response family.
-- Run observed-support K-fold validation with `cos_cv_observed()`.
+- Run Gaussian observed-support K-fold validation with `cos_cv_observed()`.
 
 ## Installation
 
@@ -74,8 +74,14 @@ remotes::install_github(
 ```
 
 Quarto itself must also be available on the system path; see
-<https://quarto.org/docs/get-started/>. Pre-built vignette HTML/PDF files in
-the repository can be viewed without rebuilding them.
+<https://quarto.org/docs/get-started/>. The repository includes the
+[model and software PDF](cosTapered/vignettes/cosTapered.pdf); HTML vignettes
+are generated when you build them. The `vignette()` calls below require an
+installation with `build_vignettes = TRUE`.
+
+The pkgdown site presents all five vignettes as
+[articles](https://finleya.github.io/cosTapered/articles/index.html), alongside
+the [function reference](https://finleya.github.io/cosTapered/reference/index.html).
 
 ## Example
 
@@ -143,6 +149,10 @@ fit <- cos_fit(
 summary(fit, burn_in = 25)
 ```
 
+This short chain demonstrates the API. Use longer chains and convergence
+diagnostics for inference. `burn_in` is the first retained iteration in each
+chain, so `burn_in = 25` keeps iteration 25 onward.
+
 See the introductory package vignette for a complete Gaussian workflow:
 
 ```r
@@ -151,14 +161,14 @@ vignette("cosTapered-introduction", package = "cosTapered")
 
 The package includes complementary documents for different levels of detail:
 
-- `cosTapered-introduction`: basic Gaussian workflow.
-- `cosTapered-model`: model parameterization, computation, support targets,
+- [Getting started](https://finleya.github.io/cosTapered/articles/cosTapered-introduction.html): basic Gaussian workflow.
+- [Model and computing details](https://finleya.github.io/cosTapered/articles/cosTapered-model.html): model parameterization, computation, support targets,
   and prediction uncertainty.
-- `cosTapered-spatial-guidance`: practical guidance on when spatial COS helps.
-- `cosTapered-binomial`: experimental Polya-Gamma binomial response workflow.
-- `cosTapered-negative-binomial`: experimental fixed-size negative-binomial
+- [Spatial guidance](https://finleya.github.io/cosTapered/articles/cosTapered-spatial-guidance.html): practical guidance on when spatial COS helps.
+- [Binomial responses](https://finleya.github.io/cosTapered/articles/cosTapered-binomial.html): experimental Polya-Gamma binomial response workflow.
+- [Negative-binomial responses](https://finleya.github.io/cosTapered/articles/cosTapered-negative-binomial.html): experimental fixed-size negative-binomial
   count response workflow with offsets and areal count summaries.
-- `cosTapered.pdf`: TeX/PDF model and software details with posterior
+- [Model and software PDF](cosTapered/vignettes/cosTapered.pdf): model and software details with posterior
   calculations.
 
 ```r
@@ -188,63 +198,20 @@ future or replicated count draw.
 
 The main prediction choices are:
 
-```mermaid
-flowchart TD
-  A[Start with fitted model and recovered B effects] --> B{Prediction support}
-  B --> C[Fine cells: cos_predict_fine]
-  B --> D[Areal units: cos_predict_areal]
+| Response family | Fine-support prediction | Areal prediction | Spatial uncertainty |
+| --- | --- | --- | --- |
+| Gaussian | Latent mean, or response with fine-cell nugget | Latent support average, or response with support-averaged nugget | `conditional_mean` or `marginal`; also `joint` for fine support |
+| Binomial | Latent link and probability | Latent support-averaged link and its inverse-logit probability | `conditional_mean` or `marginal` |
+| Negative-binomial | Latent link and expected count, or an observed count draw | Latent support-averaged link plus offset and expected count, or an observed count draw | `conditional_mean` or `marginal` |
 
-  C --> E{Response family}
-  D --> F{Response family}
+Both prediction functions default to `spatial_uncertainty = "conditional_mean"`.
+Set `spatial_uncertainty = "marginal"` explicitly for marginal uncertainty.
+Posterior means and SDs are returned with `keep_samples = FALSE`; use
+`keep_samples = TRUE` to also obtain draws and 2.5%, 50%, and 97.5% quantiles.
 
-  E --> G[Gaussian]
-  E --> H[Binomial]
-  E --> NB[Negative-binomial]
-  F --> I[Gaussian]
-  F --> J[Binomial]
-  F --> NBU[Negative-binomial]
-
-  G --> K{target}
-  I --> L{target}
-  H --> M[latent link eta and probability p]
-  J --> N[latent link eta and probability p]
-  NB --> NBK{target}
-  NBU --> NBL{target}
-
-  K --> O[latent eta]
-  K --> P[observed y = eta + nugget]
-  L --> Q[latent eta]
-  L --> R[observed y = eta + support nugget]
-  NBK --> NBF[latent link eta and mean count mu]
-  NBK --> NBY[observed count y via NB sampling]
-  NBL --> NBA[latent link eta and mean count mu]
-  NBL --> NBU_Y[observed count y via NB sampling]
-
-  O --> S{spatial_uncertainty}
-  P --> S
-  Q --> T{spatial_uncertainty}
-  R --> T
-  M --> U{spatial_uncertainty}
-  N --> V{spatial_uncertainty}
-  NBF --> NBFS{spatial_uncertainty}
-  NBY --> NBFS
-  NBA --> NBAS{spatial_uncertainty}
-  NBU_Y --> NBAS
-
-  S --> W[conditional_mean: plug-in surface]
-  S --> X[marginal: per-cell uncertainty]
-  S --> Y[joint: joint fine-surface samples]
-  T --> Z[conditional_mean: plug-in unit summaries]
-  T --> AA[marginal: per-unit uncertainty]
-  U --> AB[conditional_mean: plug-in probability surface]
-  U --> AD[marginal: per-cell probability uncertainty]
-  V --> AC[conditional_mean: plug-in areal probabilities]
-  V --> AE[marginal: per-unit probability uncertainty]
-  NBFS --> NBFC[conditional_mean: plug-in spatial effect]
-  NBFS --> NBFM[marginal: per-cell spatial uncertainty]
-  NBAS --> NBAC[conditional_mean: plug-in spatial effect]
-  NBAS --> NBAM[marginal: per-unit spatial uncertainty]
-```
+Without `pred_coords` and `X_pred`, fine prediction covers only the complete
+raster cells intersecting observed polygons. Supply both arguments to map the
+full raster domain, as shown in the introductory article.
 
 For Gaussian fine-support prediction, `spatial_uncertainty = "joint"` draws
 from the joint conditional Gaussian surface and can be expensive for large
@@ -262,8 +229,12 @@ augmentation through `BayesLogit`. Binomial prediction reports link-scale
 summaries and response probability summaries. Negative-binomial prediction
 uses a fixed `size` parameter, supports offsets such as log exposure, reports
 link-scale and mean-count summaries with `target = "latent"`, and can
-simulate observed count predictions with `target = "observed"`. The
-Polya-Gamma response paths support `spatial_uncertainty = "conditional_mean"`
+simulate observed count predictions with `target = "observed"`. For these
+non-Gaussian models, aggregation occurs on the linear-predictor scale:
+areal probabilities are not averages of fine-cell probabilities, and areal
+expected counts are not sums of fine-cell expected counts. Prediction offsets
+must express the intended exposure and default to zero; fitted offsets are
+not automatically reused. The Polya-Gamma response paths support `spatial_uncertainty = "conditional_mean"`
 and `"marginal"`; they do not produce joint prediction surfaces.
 
 ## Reference

@@ -42,6 +42,11 @@ supports. In the COS setting considered here, covariates are represented on a
 fine raster grid, responses are observed on polygons, and predictions can be
 made for either fine raster cells or other polygon supports.
 
+The fitting and prediction chunks below are displayed without execution to
+keep vignette builds quick. Run them in order for the complete workflow; the
+short chains illustrate the API and require longer runs and convergence
+diagnostics for inference.
+
 Development of the package was motivated by data structures common in natural
 resource and forest inventory applications, where field responses are measured
 on plots, remotely sensed covariates are available as raster layers, and
@@ -198,7 +203,9 @@ about 80 to 600 map units.
 ## Fit the model
 
 `cos_fit()` samples the collapsed posterior for covariance parameters. Use
-longer chains and multiple starting values for real analyses.
+longer chains and multiple starting values for real analyses. `burn_in` is
+the first retained iteration in each chain, not a number of batches;
+`burn_in = 50` below retains iteration 50 onward.
 
 ```{r fit, eval = FALSE}
 fit <- cos_fit(
@@ -246,9 +253,10 @@ summary(rec_B, include_eta_B = TRUE)
 ## Predict the fine grid
 
 Fine-support prediction returns the latent raster-scale response by default.
-If `pred_coords` and `X_pred` are omitted, `cos_predict_fine()` predicts on
-the original fine support used by `cos_prepare()`. In this example that is the
-native 3 m by 3 m raster grid.
+If `pred_coords` and `X_pred` are omitted, `cos_predict_fine()` predicts only
+on the complete raster cells intersecting the observed polygons, stored by
+`cos_prepare()`. To map the full raster domain, explicitly supply every
+complete cell as below. The example uses the native 3 m by 3 m grid.
 
 For routine pixel-wise maps with uncertainty, use
 `spatial_uncertainty = "marginal"`. This uses the faster marginal prediction
@@ -260,9 +268,16 @@ one at a time. Use `spatial_uncertainty = "joint"` only when a downstream
 summary combines cells and requires cross-cell covariance.
 
 ```{r predict-fine, eval = FALSE}
+pred_cell <- which(complete.cases(getValues(X_rast)))
+pred_coords <- xyFromCell(X_rast[[1]], pred_cell)
+X_pred <- as.matrix(extract(X_rast, pred_cell))
+colnames(X_pred) <- names(X_rast)
+
 pred_fine <- cos_predict_fine(
   fit = fit,
   rec_B = rec_B,
+  pred_coords = pred_coords,
+  X_pred = X_pred,
   spatial_uncertainty = "marginal",
   keep_samples = FALSE,
   n_threads = 2,
@@ -272,9 +287,12 @@ pred_fine <- cos_predict_fine(
 summary(pred_fine)
 ```
 
-The returned summary contains one row per predicted fine cell, including the
-cell coordinates, posterior mean, posterior standard deviation, and interval
-summaries for the requested target.
+`pred_fine$summary` contains one row per predicted fine cell, including the
+cell coordinates, posterior mean, and posterior standard deviation.
+`summary(pred_fine)` summarizes those results across cells. Set
+`keep_samples = TRUE` to retain draws and add the 2.5%, 50%, and 97.5%
+posterior quantiles; interval summaries are not returned with
+`keep_samples = FALSE`. The same rule applies to areal predictions.
 
 ## Predict areal supports
 
@@ -339,8 +357,9 @@ cv <- cos_cv_observed(
 summary(cv)
 ```
 
-For model-comparison guidance, see the spatial-guidance vignette. For model
-and computational details, see the model-details vignette.
+For model-comparison guidance, see the [spatial-guidance
+vignette](cosTapered-spatial-guidance.qmd). For model and computational
+details, see the [model-details vignette](cosTapered-model.qmd).
 
 ## Reference
 
