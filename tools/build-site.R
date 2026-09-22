@@ -32,13 +32,26 @@ build_site <- function() {
   stopifnot(file.copy(file.path(pkg, "vignettes", "cosTapered.pdf"), assets,
                      overwrite = TRUE))
 
+  # Quarto starts its own R session, which does not inherit .libPaths().
+  # Export the temporary library so both pkgdown and Quarto use this source
+  # version, even when the package has not previously been installed.
+  library <- file.path(stage, "library")
+  dir.create(library)
+  withr::local_libpaths(library, action = "prefix")
+  withr::local_envvar(
+    R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep)
+  )
+  callr::rcmd("INSTALL", c(paste0("--library=", library), "--with-keep.source", pkg),
+              show = TRUE)
+
   destination <- file.path(stage, "docs")
   pkgdown::build_site(
     pkg = pkg,
     override = list(destination = destination),
     preview = FALSE,
     new_process = TRUE,
-    install = TRUE
+    install = FALSE,
+    quiet = FALSE
   )
   file.create(file.path(destination, ".nojekyll"))
   pkgdown::check_pkgdown(pkgdown::as_pkgdown(

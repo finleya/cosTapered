@@ -13,6 +13,9 @@ The script installs the current package in a temporary library, builds from a
 temporary source copy, and writes the site to `docs/`. It uses the root
 `README.md` and `README_files/` for the homepage, renders all five Quarto
 vignettes as articles, includes the model PDF, and checks the finished site.
+The temporary library is passed to Quarto's separate R sessions, so a prior
+installation of `cosTapered` is not needed. Rendering output is included in
+the build log to make failures easier to diagnose.
 Generated HTML is ignored by Git. Preview with:
 
 ```sh
