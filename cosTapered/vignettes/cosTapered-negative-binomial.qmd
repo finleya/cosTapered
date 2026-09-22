@@ -47,6 +47,13 @@ spatial Gaussian process, and a log-exposure offset. We then fit the model,
 predict the mean count over the full fine raster domain, and summarize counts
 on areal prediction polygons.
 
+The simulation, fitting, and prediction chunks are displayed without execution
+so that vignette builds stay quick. Run them in order to reproduce the model
+workflow. The figures and distance summaries are saved from an earlier example
+run; they are not regenerated during a vignette build. The short chain and 12
+retained draws demonstrate the API; use longer chains, more draws, and
+convergence diagnostics for inference.
+
 ## Model
 
 For observed support $B_l$, the fixed-size negative-binomial model is
@@ -73,6 +80,12 @@ not estimated.
 The offset is part of the linear predictor. If counts are measured over
 different exposures, areas, times, or sampling efforts, supply the log
 exposure used by the observed data and use compatible offsets for prediction.
+Prediction offsets default to zero; fitted offsets are not automatically reused.
+
+As in the binomial model, this likelihood is defined on the observed support.
+For an areal prediction, the package averages covariates and spatial effects
+on the link scale, adds the areal offset, and then exponentiates. The result
+is not a sum or average of fine-cell expected counts.
 
 ## Simulate count plot data
 
@@ -159,11 +172,7 @@ The plot counts are sparse relative to the fine raster domain. The fitted
 surface must borrow information through the covariate, the support model, and
 the spatial process.
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/negative_binomial_plot_counts.png")
-```
+![Negative binomial plot counts](figures/negative_binomial_plot_counts.png){width="100%"}
 
 ## Fit the count model
 
@@ -277,21 +286,14 @@ pred_fine <- cos_predict_fine(
 
 The fitted unit-exposure mean-count surface from the example run is:
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/negative_binomial_mu_mean_map.png")
-```
+![Negative binomial mu mean map](figures/negative_binomial_mu_mean_map.png){width="100%"}
 
 The next figure shows posterior standard deviations for the marginal
 mean-count summaries. These are independent marginal summaries by cell, not a
-joint simulated surface.
+joint simulated surface. Set `keep_samples = TRUE` to also retain draws
+and obtain posterior quantiles for intervals.
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/negative_binomial_mu_sd_map.png")
-```
+![Negative binomial mu sd map](figures/negative_binomial_mu_sd_map.png){width="100%"}
 
 The distance summary from the same run was:
 
@@ -354,19 +356,11 @@ pred_areal <- cos_predict_areal(
 
 The areal posterior mean counts are:
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/negative_binomial_areal_mu_mean_map.png")
-```
+![Negative binomial areal mu mean map](figures/negative_binomial_areal_mu_mean_map.png){width="100%"}
 
 The areal posterior mean-count standard deviations are:
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/negative_binomial_areal_mu_sd_map.png")
-```
+![Negative binomial areal mu sd map](figures/negative_binomial_areal_mu_sd_map.png){width="100%"}
 
 Use `target = "latent"` when the target is the expected count $\mu_U$.
 Use `target = "observed"` when the target is a future or replicated count
@@ -394,6 +388,5 @@ the relevant output. If stands will be combined into a larger reporting unit,
 predict directly for that dissolved reporting unit so the support and offset
 match the estimand.
 
-The supporting script `dev/negative_binomial_example_count_surface.R`
-reproduces the simulation, fit, fine-grid prediction, areal prediction, and
-figures used in this vignette.
+The code above reproduces the simulation, fit, and prediction workflow.
+The original figure-generation script is not included in the public package.

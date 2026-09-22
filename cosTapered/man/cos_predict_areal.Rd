@@ -16,7 +16,8 @@ cos_predict_areal(fit, rec_B, U_blocks, offset_U = NULL,
 families. Supply \code{NULL}, a finite numeric vector of length one or
 \code{length(U_blocks$blocks)}, or the name of a column in
 \code{U_blocks$U_sf}. For negative-binomial areal prediction this is commonly
-a log exposure for each prediction unit.}
+a log exposure for each prediction unit. \code{NULL} means zero; fitted
+offsets are not automatically reused.}
 \item{spatial_uncertainty}{How to handle unobserved areal-support spatial
 effects. \code{"conditional_mean"} is faster but omits conditional spatial
 prediction uncertainty. \code{"marginal"} draws independent marginal
@@ -29,7 +30,9 @@ variance \eqn{\tau^2\sum_i g_{ki}^2} for prediction support \eqn{U_k}. For
 negative-binomial fits, \code{"latent"} summarizes the log mean \code{eta}
 and mean count \code{mu = exp(eta)}, while \code{"observed"} also simulates
 count draws from the fitted negative-binomial likelihood.}
-\item{keep_samples}{Logical; if \code{TRUE}, store posterior sample matrices.}
+\item{keep_samples}{Logical; if \code{TRUE}, store posterior sample matrices
+and add 2.5\%, 50\%, and 97.5\% quantiles to the per-unit summary. If
+\code{FALSE}, return means and standard deviations without quantiles.}
 \item{n_threads}{Optional number of OpenMP threads used by compiled
 covariance code. If \code{NULL}, uses \code{fit$prep$n_threads}.}
 \item{verbose}{Logical; if \code{TRUE}, print progress messages.}
@@ -62,6 +65,10 @@ summaries. When \code{target = "observed"} for a negative-binomial fit, it
 also reports simulated count \code{y_*} summaries. The \code{offset_U}
 argument defines the prediction-unit exposure or other known offset; the
 package does not infer count exposure from polygon area.
+For these non-Gaussian models, aggregation occurs on the link scale before
+the inverse link is applied. Areal probabilities are not averages of
+fine-cell probabilities, and areal expected counts are not sums of fine-cell
+expected counts.
 }
 \value{
 A list with class \code{"cos_prediction_areal"} containing areal prediction

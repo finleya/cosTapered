@@ -1,0 +1,67 @@
+url: https://finleya.github.io/cosTapered/
+destination: ../docs
+
+template:
+  bootstrap: 5
+  bootswatch: flatly
+  math-rendering: katex
+  bslib:
+    primary: "#25634b"
+    link-color: "#25634b"
+
+repo:
+  url:
+    home: https://github.com/finleya/cosTapered/
+    source: https://github.com/finleya/cosTapered/blob/HEAD/cosTapered/
+    issue: https://github.com/finleya/cosTapered/issues/
+    user: https://github.com/
+
+navbar:
+  structure:
+    left: [intro, reference, articles]
+    right: [search, github]
+  components:
+    intro:
+      text: Get started
+      href: articles/cosTapered-introduction.html
+
+articles:
+  - title: Workflows and model guidance
+    desc: >
+      Start with the Gaussian workflow, then explore the model details,
+      spatial guidance, or experimental response families.
+      The [model and software PDF](cosTapered.pdf) collects the posterior calculations.
+    navbar: ~
+    contents:
+      - cosTapered-introduction
+      - cosTapered-model
+      - cosTapered-spatial-guidance
+      - cosTapered-binomial
+      - cosTapered-negative-binomial
+
+reference:
+  - title: Package and example data
+    contents:
+      - cosTapered-package
+      - cosTapered-example-data
+  - title: Prepare, fit, and recover
+    contents:
+      - cos_prepare
+      - cos_default_priors
+      - cos_fit
+      - cos_recover_B
+  - title: Predict and validate
+    contents:
+      - cos_predict_fine
+      - cos_make_areal_blocks
+      - cos_predict_areal
+      - cos_cv_observed
+      - cos_simulate_data
+  - title: Summaries and diagnostics
+    contents:
+      - cos_fit-methods
+      - cos_summary_methods
+      - cos_print_methods
+  - title: Sampler utilities
+    contents:
+      - lapMetropBlock

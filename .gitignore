@@ -18,6 +18,8 @@ cosTapered/src/*.dylib
 
 cosTapered/vignettes/*.html
 cosTapered/vignettes/*_files/
+cosTapered/vignettes/.quarto/
+docs/
 
 *.log
 *.aux

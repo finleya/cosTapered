@@ -43,7 +43,7 @@ introductory vignette shows the user workflow; this vignette explains the model
 parameterization, support averaging, nugget scaling, collapsed sampler,
 recovery distributions, prediction targets, and computational tradeoffs.
 
-The implementation is intentionally focused. It supports a tapered exponential
+The Gaussian implementation described below supports a tapered exponential
 Gaussian process, proper normal regression priors, inverse-gamma variance
 priors, a bounded uniform prior for the exponential decay parameter, simple S3
 objects, and latent or observed prediction targets.
@@ -54,10 +54,12 @@ negative-binomial path supports fixed-size count responses with user-supplied
 offsets such as log exposure.
 
 For readers who want the model notation and posterior calculations in one
-place, the package also installs a PDF model and software details document:
-`cosTapered.pdf`. After installation, locate it with:
+place, the repository includes a [PDF model and software details
+document](cosTapered.pdf). After installing with `build_vignettes = TRUE`,
+locate it with:
 
 ```{r appendix-path}
+#| eval: false
 system.file("doc", "cosTapered.pdf", package = "cosTapered")
 ```
 
@@ -498,6 +500,21 @@ V_\beta^{-1} & 0\\
 \end{bmatrix}.
 $$
 
+The corresponding information vector is
+
+$$
+b_\alpha =
+\frac{1}{\tau^2} Z^\top D_h^{-1}\mathbf{y}_B
++
+\begin{bmatrix}
+V_\beta^{-1}\mu_\beta\\
+0
+\end{bmatrix}.
+$$
+
+Here `burn_in` is the first retained iteration within each chain, and
+`n_samples` caps the total number of retained draws across chains.
+
 The implementation samples from this conditional distribution using a
 Cholesky factorization of $Q_\alpha$. It stores draws of $\beta$,
 $\boldsymbol{\omega}_B$, and the observed-support latent mean
@@ -511,7 +528,10 @@ recovered.
 
 ## Fine-support prediction
 
-Fine-support prediction is implemented by `cos_predict_fine()`. For prediction
+Fine-support prediction is implemented by `cos_predict_fine()`. Its default
+locations are the complete raster cells intersecting the observed supports.
+Supply both `pred_coords` and `X_pred` to predict elsewhere, including over
+the full raster domain. For prediction
 locations $P$, let $X_P$ be the prediction covariate matrix and let
 $\boldsymbol{\omega}_P$ be the corresponding spatial residual vector. For a
 retained posterior draw,
@@ -531,7 +551,7 @@ $$
 \eta_P = X_P\beta+\boldsymbol{\omega}_P.
 $$
 
-When `spatial_uncertainty = "conditional_mean"`, the package uses the
+By default, `spatial_uncertainty = "conditional_mean"`: the package uses the
 conditional mean of $\boldsymbol{\omega}_P$, so uncertainty summaries omit
 conditional spatial prediction uncertainty. With
 `spatial_uncertainty = "marginal"`, it draws independent marginal conditional
@@ -611,9 +631,7 @@ paths. Negative-binomial prediction follows the same Polya-Gamma
 with mean-count summaries for `target = "latent"` and count draws for
 `target = "observed"`.
 
-```{r prediction-decision-figure, echo = FALSE, out.width = "100%", fig.cap = "Prediction uncertainty choices for Gaussian and binomial paths in cosTapered. The key distinction is whether samples represent conditional means, independent marginal uncertainty for each prediction unit, or a joint fine-support Gaussian surface. Gray boxes are plug-in conditional-mean summaries. Blue boxes are marginal prediction-unit summaries, appropriate for stand, polygon, or cell estimates interpreted one unit at a time. Purple boxes are joint fine-support samples for summaries that combine cells. Runtime can differ substantially among paths, but the inferential target should determine the choice."}
-knitr::include_graphics("figures/prediction_decision.png")
-```
+![Prediction uncertainty choices for Gaussian and binomial paths in cosTapered. The key distinction is whether samples represent conditional means, independent marginal uncertainty for each prediction unit, or a joint fine-support Gaussian surface. Gray boxes are plug-in conditional-mean summaries. Blue boxes are marginal prediction-unit summaries, appropriate for stand, polygon, or cell estimates interpreted one unit at a time. Purple boxes are joint fine-support samples for summaries that combine cells. Runtime can differ substantially among paths, but the inferential target should determine the choice.](figures/prediction_decision.png){width="100%"}
 
 The choices mean:
 
@@ -635,6 +653,10 @@ The choices mean:
   and is available for Gaussian fine prediction only. Use it when the summary
   combines fine cells and therefore depends on cross-cell covariance.
 
+With `keep_samples = FALSE`, prediction returns posterior means and SDs.
+Set `keep_samples = TRUE` to also retain samples and compute the 2.5%, 50%,
+and 97.5% posterior quantiles.
+
 ## Missing raster cells and support targets
 
 Support weights define the estimand. If an observed or prediction support
@@ -648,7 +670,7 @@ should be made deliberately because they change the target support.
 
 ## Cross validation
 
-`cos_cv_observed()` performs observed-support K-fold cross validation. For
+`cos_cv_observed()` provides the Gaussian observed-support K-fold workflow. For
 each fold it refits the model to training polygons, treats held-out polygons as
 prediction units, predicts their latent areal means, optionally adds
 observed-support nugget draws, and scores posterior predictive samples.

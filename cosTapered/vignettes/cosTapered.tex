@@ -457,6 +457,11 @@ cell or areal unit and transforms each draw through the inverse-logit link.
 These probability summaries are posterior summaries of \(\pi_P\), not
 Gaussian delta-method approximations.
 
+These equations use zero offsets. If an offset is supplied, it is added to
+the linear predictor before applying the inverse link. For polygons, support
+averaging is performed on the linear-predictor scale; the resulting areal
+probability is not an average of fine-cell probabilities.
+
 The current binomial prediction path does not produce joint fine-grid or
 joint areal probability samples. This is intentional for the present package
 stage: independent marginal prediction is sufficient for cell-wise and
@@ -513,8 +518,17 @@ mean-count summaries for \(\mu_P=\exp(\eta_P)\). If
 \texttt{target = "observed"}, it also simulates count draws from
 \(\mathrm{NB}(r,\mu_P)\). Prediction offsets must be supplied by the user;
 the package does not infer count exposure from polygon area.
+The default prediction offset is zero and fitted offsets are not reused.
+For an areal target, the package averages covariates and spatial effects,
+adds the areal offset, and exponentiates. The expected count is not a sum or
+average of fine-cell expected counts.
 
-\section{Prediction targets and uncertainty}
+\section{Gaussian prediction targets and uncertainty}
+
+When prediction coordinates and covariates are omitted,
+\texttt{cos\_predict\_fine()} uses only the complete raster cells intersecting
+observed polygons. Supply both \texttt{pred\_coords} and \texttt{X\_pred} to
+predict over the full raster domain or at other locations.
 
 The latent fine-support target is
 \begin{equation}
@@ -546,17 +560,24 @@ nugget variation:
   \epsilon(U_k)\sim N\left(0,\tau^2\sum_i g_{ki}^2\right).
 \end{equation}
 
-Current areal prediction samples are marginal by prediction unit. They include
+With \texttt{spatial\_uncertainty = "marginal"}, areal prediction samples are
+marginal by prediction unit. They include
 one-dimensional conditional uncertainty for each \(U_k\), but they are not
 joint samples across all prediction units. They should not be used for totals,
 contrasts, rankings, or other summaries that require cross-unit posterior
 covariance. The package reports areal means; users compute totals after
 choosing area units.
 
+Both prediction functions default to
+\texttt{spatial\_uncertainty = "conditional\_mean"}, which omits conditional
+spatial prediction uncertainty. With \texttt{keep\_samples = FALSE}, they
+return means and standard deviations. Set \texttt{keep\_samples = TRUE} to
+also retain draws and obtain 2.5\%, 50\%, and 97.5\% posterior quantiles.
+
 \section{Cross-validation and computational guidance}
 
-\texttt{cos\_cv\_observed()} refits the model across observed-support folds
-and scores predictions on held-out supports. For Gaussian fits, the validation
+\texttt{cos\_cv\_observed()} provides a Gaussian validation workflow, refitting
+the model across observed-support folds and scoring held-out supports. The validation
 target should match the inferential question. The latent target compares
 predictions of \(\eta(B_l)\), while the observed target compares predictions
 of \(y(B_l)=\eta(B_l)+\epsilon(B_l)\) and includes the support-averaged nugget.

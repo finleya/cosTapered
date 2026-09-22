@@ -32,6 +32,13 @@ simulate binary plot outcomes from a weak fine-support covariate effect and a
 stronger spatial Gaussian process, fit the binomial COS model, and summarize
 predicted response probability over the fine grid.
 
+The simulation, fitting, and prediction chunks are displayed without execution
+so that vignette builds stay quick. Run them in order to reproduce the model
+workflow. The figures and distance summaries are saved from an earlier example
+run; they are not regenerated during a vignette build. The short chain and 12
+retained draws demonstrate the API; use longer chains, more draws, and
+convergence diagnostics for inference.
+
 ## Model
 
 For observed support $B_l$, the first binomial implementation uses
@@ -133,11 +140,7 @@ is useful as a first diagnostic: the observations are sparse and binary, so
 the fitted probability surface must borrow information through both the
 covariate and the spatial process.
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/binomial_plot_observations.png")
-```
+![Binomial plot observations](figures/binomial_plot_observations.png){width="100%"}
 
 ## Fit the binomial COS model
 
@@ -223,7 +226,7 @@ forms $\eta_a = x_a^\top\beta + \omega_a$, transforms with `plogis()`, and
 summarizes the resulting probability draws. No joint fine-grid covariance
 matrix is formed.
 
-For display, the development script predicts the full non-missing native
+For display, the code below predicts the full non-missing native
 fine-support raster domain. In the bundled example this is the 3 m by 3 m
 grid, and the marginal C++ prediction backend avoids forming the dense joint
 fine-grid covariance matrix.
@@ -248,21 +251,13 @@ pred_fine <- cos_predict_fine(
 
 The fitted probability surface from the example run is:
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/binomial_probability_mean_map.png")
-```
+![Binomial probability mean map](figures/binomial_probability_mean_map.png){width="100%"}
 
 The next figure shows the posterior standard deviation of the marginal
 response probability. These are independent marginal summaries by cell, not a
 joint simulated surface.
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/binomial_probability_sd_map.png")
-```
+![Binomial probability sd map](figures/binomial_probability_sd_map.png){width="100%"}
 
 The distance summary from the same run was:
 
@@ -274,11 +269,11 @@ data.frame(
 )
 ```
 
-The monotone increase is the expected behavior: cells nearer observed plots
-have lower conditional spatial uncertainty than cells farther away. The total
-posterior probability standard deviation can be flatter in small binary
-examples because fixed-effect and covariance-parameter uncertainty also
-contribute.
+The table shows a small overall increase, with a dip in the fifth group;
+it is not monotone. Nearby observations can reduce conditional spatial
+uncertainty, but distance to the nearest plot alone does not determine it.
+The total posterior probability SD also depends on the link transformation,
+fixed effects, covariance parameters, and Monte Carlo variability.
 
 ## Areal probability summaries
 
@@ -286,7 +281,11 @@ Fine-grid maps are useful for diagnostics, but management summaries are often
 needed on areal supports. The package uses the same marginal prediction logic
 for areal units. `cos_make_areal_blocks()` builds the support weights, and
 `cos_predict_areal()` returns link-scale and response-probability summaries for
-each polygon.
+each polygon. For each draw, the areal probability is the inverse logit
+of the support-averaged linear predictor. It is not the area-weighted average
+of fine-cell probabilities. These are marginal summaries for separate units;
+the draws do not support joint comparisons across polygons. Use
+`keep_samples = TRUE` to obtain probability quantiles as well as means and SDs.
 
 ```{r}
 #| eval: false
@@ -315,20 +314,11 @@ pred_areal <- cos_predict_areal(
 
 The areal posterior mean probabilities are:
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/binomial_areal_probability_mean_map.png")
-```
+![Binomial areal probability mean map](figures/binomial_areal_probability_mean_map.png){width="100%"}
 
 The areal posterior probability standard deviations are:
 
-```{r}
-#| echo: false
-#| out-width: "100%"
-knitr::include_graphics("figures/binomial_areal_probability_sd_map.png")
-```
+![Binomial areal probability sd map](figures/binomial_areal_probability_sd_map.png){width="100%"}
 
-The supporting script `dev/binomial_example_probability_surface.R` reproduces
-the simulation, fit, fine-grid prediction, areal prediction, and figures used
-in this vignette.
+The code above reproduces the simulation, fit, and prediction workflow.
+The original figure-generation script is not included in the public package.

@@ -12,14 +12,15 @@ cos_predict_fine(fit, rec_B, pred_coords = NULL, X_pred = NULL,
 \item{fit}{A \code{"cos_fit"} object.}
 \item{rec_B}{A \code{"cos_recovery_B"} object.}
 \item{pred_coords}{Optional matrix of prediction coordinates with columns
-\code{x} and \code{y}. If omitted, the original fine support in \code{fit}
-is used.}
+\code{x} and \code{y}. If both this and \code{X_pred} are omitted, uses the
+complete raster cells intersecting observed polygons stored in \code{fit}.
+Supply both arguments to predict over the full raster domain or elsewhere.}
 \item{X_pred}{Optional matrix of prediction covariates with column names
 matching the fitted covariates.}
 \item{offset_pred}{Optional prediction offset for Polya-Gamma response
 families. Supply \code{NULL} or a finite numeric vector of length one or
 \code{nrow(X_pred)}. For negative-binomial prediction this is commonly a log
-exposure.}
+exposure. \code{NULL} means zero; fitted offsets are not automatically reused.}
 \item{spatial_uncertainty}{How to handle unobserved fine-support spatial
 effects. \code{"conditional_mean"} is faster but omits conditional spatial
 prediction uncertainty. \code{"marginal"} draws independent marginal
@@ -33,7 +34,9 @@ latent fine-support means \code{eta_A = X_A beta + omega_A}, while
 mean \code{eta} and mean count \code{mu = exp(eta)}, while
 \code{"observed"} also simulates count draws from the fitted
 negative-binomial likelihood.}
-\item{keep_samples}{Logical; if \code{TRUE}, store posterior sample matrices.}
+\item{keep_samples}{Logical; if \code{TRUE}, store posterior sample matrices
+and add 2.5\%, 50\%, and 97.5\% quantiles to the per-cell summary. If
+\code{FALSE}, return means and standard deviations without quantiles.}
 \item{n_threads}{Optional number of OpenMP threads used by compiled
 covariance code. If \code{NULL}, uses \code{fit$prep$n_threads}.}
 \item{verbose}{Logical; if \code{TRUE}, print progress messages.}
