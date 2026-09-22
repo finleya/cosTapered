@@ -34,9 +34,9 @@
 \author{Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee}
 \date{Updated \today}
 
-% Cover-page layout controls. Increase \coverlogolift to move the logo up.
-\newcommand{\coverlogolift}{0.15in}
+% Cover-page logo size and spacing below the image.
 \newcommand{\coverlogowidth}{0.42\textwidth}
+\newcommand{\coverlogogap}{0.25in}
 
 \begin{document}
 \pagenumbering{gobble}
@@ -51,9 +51,9 @@
   \vspace{0.25in}
   {\large Updated \today\par}
   \vfill
+  \includegraphics[width=\coverlogowidth]{figures/logo.png}\par
+  \vspace{\coverlogogap}
   {\large Bayesian change-of-support modeling with tapered exponential covariance\par}
-  \vspace*{-\coverlogolift}
-  \includegraphics[width=\coverlogowidth]{figures/logo.png}
   \vfill
 \end{titlepage}
 
