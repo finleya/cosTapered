@@ -1,509 +1,323 @@
-set.seed(20260517)
+# Reproduce the spatial-guidance article with the installed package.
+# source(system.file("scripts", "spatial-cos-guidance-repeated-study.R",
+#                    package = "cosTapered"))
+# Settings are recorded with every run. Checkpoints can resume the same settings.
 
-library(sf)
-library(raster)
-
-pkg_dir <- "cosTapered"
-use_pkgload <- identical(Sys.getenv("CTV_USE_PKGLOAD", unset = "FALSE"), "TRUE")
-if (use_pkgload && requireNamespace("pkgload", quietly = TRUE)) {
-  pkgload::load_all(pkg_dir, quiet = TRUE, recompile = TRUE)
-} else {
-  library(cosTapered)
-}
-
-env_int <- function(name, default) {
+study_env_number <- function(name, default, integer = FALSE) {
   value <- Sys.getenv(name, unset = "")
-  if (identical(value, "")) return(default)
-  as.integer(value)
-}
-
-env_num_vec <- function(name, default) {
-  value <- Sys.getenv(name, unset = "")
-  if (identical(value, "")) return(default)
-  as.numeric(strsplit(value, ",", fixed = TRUE)[[1]])
-}
-
-msg <- function(...) {
-  cat(format(Sys.time(), "%H:%M:%S"), " ", paste0(...), "\n", sep = "")
-}
-
-summarize_metric <- function(x) {
-  c(
-    mean = mean(x, na.rm = TRUE),
-    sd = stats::sd(x, na.rm = TRUE),
-    q10 = unname(stats::quantile(x, 0.10, na.rm = TRUE)),
-    q50 = unname(stats::quantile(x, 0.50, na.rm = TRUE)),
-    q90 = unname(stats::quantile(x, 0.90, na.rm = TRUE))
-  )
-}
-
-summarize_groups <- function(dat, by, metrics) {
-  groups <- split(dat, dat[by], drop = TRUE)
-  rows <- lapply(groups, function(z) {
-    out <- z[1, by, drop = FALSE]
-    for (metric in metrics) {
-      vals <- summarize_metric(z[[metric]])
-      for (stat in names(vals)) {
-        out[[paste(metric, stat, sep = "_")]] <- vals[[stat]]
-      }
-    }
-    out$n_reps <- length(unique(z$rep_id))
-    out
-  })
-  out <- do.call(rbind, rows)
-  rownames(out) <- NULL
+  out <- if (value == "") default else as.numeric(value)
+  if (length(out) != 1L || !is.finite(out) || out <= 0 ||
+      (integer && out != floor(out))) stop("Invalid ", name)
   out
 }
-
-make_improvement <- function(results) {
-  wide <- reshape(
-    results[, c(
-      "rep_id", "target", "eff_range", "model", "RMSPE", "MAE", "CRPS",
-      "coverage_95", "mean_interval_width"
-    )],
-    idvar = c("rep_id", "target", "eff_range"),
-    timevar = "model",
-    direction = "wide"
-  )
-  names(wide) <- sub("^RMSPE\\.", "RMSPE_", names(wide))
-  names(wide) <- sub("^MAE\\.", "MAE_", names(wide))
-  names(wide) <- sub("^CRPS\\.", "CRPS_", names(wide))
-  names(wide) <- sub("^coverage_95\\.", "coverage_95_", names(wide))
-  names(wide) <- sub("^mean_interval_width\\.", "mean_interval_width_", names(wide))
-  wide$RMSPE_improvement_pct <-
-    100 * (wide$RMSPE_nonspatial - wide$RMSPE_spatial) / wide$RMSPE_nonspatial
-  wide$CRPS_improvement_pct <-
-    100 * (wide$CRPS_nonspatial - wide$CRPS_spatial) / wide$CRPS_nonspatial
-  wide$spatial_wins_RMSPE <- wide$RMSPE_spatial < wide$RMSPE_nonspatial
-  wide$spatial_wins_CRPS <- wide$CRPS_spatial < wide$CRPS_nonspatial
-  wide
+study_env_vector <- function(name, default) {
+  value <- Sys.getenv(name, unset = "")
+  out <- if (value == "") default else as.numeric(strsplit(value, ",", fixed = TRUE)[[1]])
+  if (!length(out) || any(!is.finite(out)) || anyDuplicated(out)) stop("Invalid ", name)
+  out
+}
+study_message <- function(...) {
+  cat(format(Sys.time(), "%H:%M:%S"), " ", paste0(...), "\n", sep = "")
+}
+study_compatible_settings <- function(saved, current) {
+  # Increasing the retry budget can reuse successful cases; their actual chain
+  # lengths remain recorded in diagnostics.csv and attempts.csv.
+  budget_ok <- current$max_attempts >= saved$max_attempts
+  saved$max_attempts <- current$max_attempts <- NULL
+  budget_ok && identical(saved, current)
 }
 
-write_outputs <- function(results, predictions, out_dir) {
-  improvement <- make_improvement(results)
-
-  metric_cols <- c(
-    "RMSPE", "MAE", "bias", "cor", "slope", "CRPS", "coverage_95",
-    "mean_interval_width", "tau_B_sq_median", "sigma_sq_median",
-    "eff_range_median"
-  )
-  improvement_cols <- c(
-    "RMSPE_spatial", "RMSPE_nonspatial", "RMSPE_improvement_pct",
-    "CRPS_spatial", "CRPS_nonspatial", "CRPS_improvement_pct",
-    "coverage_95_spatial", "coverage_95_nonspatial",
-    "mean_interval_width_spatial", "mean_interval_width_nonspatial",
-    "spatial_wins_RMSPE", "spatial_wins_CRPS"
-  )
-
-  mean_summary <- summarize_groups(
-    results,
-    by = c("target", "model", "eff_range"),
-    metrics = metric_cols
-  )
-  mean_improvement <- summarize_groups(
-    improvement,
-    by = c("target", "eff_range"),
-    metrics = improvement_cols
-  )
-
-  write.csv(results, file.path(out_dir, "cv_range_targets_replicate_summary.csv"),
-            row.names = FALSE)
-  write.csv(predictions, file.path(out_dir, "cv_range_targets_predictions.csv"),
-            row.names = FALSE)
-  write.csv(improvement, file.path(out_dir, "cv_range_targets_replicate_improvement.csv"),
-            row.names = FALSE)
-  write.csv(mean_summary, file.path(out_dir, "cv_range_targets_mean_summary.csv"),
-            row.names = FALSE)
-  write.csv(mean_improvement, file.path(out_dir, "cv_range_targets_mean_improvement.csv"),
-            row.names = FALSE)
-
-  target_names <- c("latent_eta_B", "observed_y_B")
-  target_labels <- c("Latent eta_B", "Observed y_B")
-  model_cols <- c(spatial = "#2563eb", nonspatial = "#dc2626")
-
-  png(file.path(out_dir, "cv_range_targets_mean_rmspe_crps.png"),
-      width = 1000, height = 700, res = 120)
-  op <- par(mfrow = c(2, 2), mar = c(4.5, 4.5, 3, 1))
-  for (target_i in seq_along(target_names)) {
-    target <- target_names[target_i]
-    dat <- mean_summary[mean_summary$target == target, ]
-    ylim <- range(dat$RMSPE_mean, finite = TRUE)
-    plot(NA, xlim = range(dat$eff_range), ylim = ylim,
-         xlab = "True effective range", ylab = "Mean RMSPE",
-         main = target_labels[target_i])
-    for (model in c("spatial", "nonspatial")) {
-      sub <- dat[dat$model == model, ]
-      lines(sub$eff_range, sub$RMSPE_mean, type = "b", pch = 19, lwd = 2,
-            col = model_cols[[model]])
-    }
-    if (target_i == 1L) {
-      legend("topleft", legend = c("spatial COS", "non-spatial COS"),
-             col = model_cols, pch = 19, lwd = 2, bty = "n")
-    }
-  }
-  for (target_i in seq_along(target_names)) {
-    target <- target_names[target_i]
-    dat <- mean_summary[mean_summary$target == target, ]
-    ylim <- range(dat$CRPS_mean, finite = TRUE)
-    plot(NA, xlim = range(dat$eff_range), ylim = ylim,
-         xlab = "True effective range", ylab = "Mean CRPS",
-         main = target_labels[target_i])
-    for (model in c("spatial", "nonspatial")) {
-      sub <- dat[dat$model == model, ]
-      lines(sub$eff_range, sub$CRPS_mean, type = "b", pch = 19, lwd = 2,
-            col = model_cols[[model]])
-    }
-  }
-  par(op)
-  dev.off()
-
-  png(file.path(out_dir, "cv_range_targets_mean_improvement.png"),
-      width = 1000, height = 700, res = 120)
-  op <- par(mfrow = c(2, 2), mar = c(4.5, 4.5, 3, 1))
-  for (metric in c("RMSPE_improvement_pct", "CRPS_improvement_pct",
-                   "spatial_wins_RMSPE", "spatial_wins_CRPS")) {
-    ylim <- range(mean_improvement[[paste0(metric, "_mean")]], finite = TRUE)
-    if (grepl("spatial_wins", metric)) ylim <- c(0, 1)
-    plot(NA, xlim = range(mean_improvement$eff_range), ylim = ylim,
-         xlab = "True effective range", ylab = metric, main = metric)
-    abline(h = if (grepl("spatial_wins", metric)) 0.5 else 0,
-           lty = 2, col = "grey45")
-    for (target_i in seq_along(target_names)) {
-      target <- target_names[target_i]
-      sub <- mean_improvement[mean_improvement$target == target, ]
-      lines(sub$eff_range, sub[[paste0(metric, "_mean")]], type = "b",
-            pch = 19, lwd = 2, col = c("#111827", "#059669")[target_i])
-    }
-    if (metric == "RMSPE_improvement_pct") {
-      legend("topleft", legend = target_labels,
-             col = c("#111827", "#059669"), pch = 19, lwd = 2, bty = "n")
-    }
-  }
-  par(op)
-  dev.off()
-
-  list(
-    improvement = improvement,
-    mean_summary = mean_summary,
-    mean_improvement = mean_improvement
+# These priors depend only on declared study settings, never on responses or
+# generating parameter values. The same beta and nugget priors enter both fits.
+study_priors <- function(prep, prior_scale) {
+  cosTapered::cos_default_priors(
+    prep, beta_mu = c(intercept = 0, chm = 0),
+    beta_sd = c(intercept = 100, chm = 10),
+    tau_B_shape = 2, tau_B_scale = prior_scale,
+    sigma_shape = 2, sigma_scale = prior_scale,
+    phi_lower = 3 / 1500, phi_upper = 3 / 10
   )
 }
+study_starts <- function(spatial, prior_scale, n_chains) {
+  factors <- exp(seq(log(0.25), log(4), length.out = n_chains))
+  out <- data.frame(tau_B_sq = prior_scale * factors)
+  if (spatial) {
+    out$sigma_sq <- prior_scale * rev(factors)
+    out$phi <- 3 / exp(seq(log(25), log(1200), length.out = n_chains))
+  }
+  out
+}
+study_diagnostics <- function(fits, burn_in, settings) {
+  rows <- lapply(seq_along(fits), function(fold) {
+    z <- fits[[fold]]$theta_samples
+    z <- z[z$iter >= burn_in, ]
+    variables <- if (isTRUE(fits[[fold]]$spatial)) {
+      c("tau_B_sq", "sigma_sq", "eff_range", "lp")
+    } else c("tau_B_sq", "lp")
+    do.call(rbind, lapply(variables, function(variable) {
+      chains <- split(z[[variable]], z$chain)
+      stopifnot(length(chains) == settings$n_chains,
+                length(unique(lengths(chains))) == 1L)
+      draws <- do.call(cbind, chains)
+      rh <- posterior::rhat(draws)
+      eb <- posterior::ess_bulk(draws)
+      et <- posterior::ess_tail(draws)
+      data.frame(fold = fold, variable = variable, rhat = rh,
+                 ess_bulk = eb, ess_tail = et,
+                 passed = is.finite(rh) && is.finite(eb) && is.finite(et) &&
+                   rh < settings$rhat_limit && eb >= settings$ess_min &&
+                   et >= settings$ess_min)
+    }))
+  })
+  do.call(rbind, rows)
+}
 
-out_dir <- Sys.getenv(
-  "CTV_OUT_DIR",
-  unset = "spatial-cos-guidance-output"
-)
-dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-checkpoint_dir <- file.path(out_dir, "checkpoints")
-dir.create(checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
-
-msg("Reading example raster and forest boundary")
-chm <- raster(system.file("extdata", "example_chm.tif", package = "cosTapered"))
-names(chm) <- "chm"
-forest_sf <- st_read(
-  system.file("extdata", "example_forest.gpkg", package = "cosTapered"),
-  quiet = TRUE
-)
-forest_sf <- st_transform(forest_sf, st_crs(crs(chm)))
-
-intercept <- chm
-intercept[] <- ifelse(is.na(getValues(chm)), NA_real_, 1)
-names(intercept) <- "intercept"
-X_rast <- stack(intercept, chm)
-names(X_rast) <- c("intercept", "chm")
-
-beta_true <- c(intercept = -10, chm = 15.87132)
-tau_B_sq_true <- 250
-sigma_sq_true <- 750
-eff_range_grid <- env_num_vec(
-  "CTV_EFF_RANGES",
-  c(25, 50, 100, 150, 250, 350, 500, 750, 1000)
-)
-n_reps <- env_int("CTV_N_REPS", 50L)
-n_threads <- env_int("CTV_N_THREADS", 25L)
-k_folds <- env_int("CTV_K_FOLDS", 10L)
-
-n_chains <- env_int("CTV_N_CHAINS", 1L)
-n_batch <- env_int("CTV_N_BATCH", 60L)
-batch_length <- env_int("CTV_BATCH_LENGTH", 10L)
-burn_in <- env_int("CTV_BURN_IN", 150L)
-thin <- env_int("CTV_THIN", 2L)
-n_samples <- env_int("CTV_N_SAMPLES", 100L)
-n_B <- env_int("CTV_N_B", 49L)
-plot_radius <- env_int("CTV_PLOT_RADIUS", 16L)
-design_seed <- env_int("CTV_DESIGN_SEED", 1101L)
-fold_seed <- env_int("CTV_FOLD_SEED", 3303L)
-sim_seed_base <- env_int("CTV_SIM_SEED_BASE", 220200L)
-
-run_settings <- list(
-  beta_true = beta_true,
-  tau_B_sq_true = tau_B_sq_true,
-  sigma_sq_true = sigma_sq_true,
-  eff_range_grid = eff_range_grid,
-  gamma_rule = "effective range + 100",
-  n_reps = n_reps,
-  n_threads = n_threads,
-  k_folds = k_folds,
-  n_chains = n_chains,
-  n_batch = n_batch,
-  batch_length = batch_length,
-  burn_in = burn_in,
-  thin = thin,
-  n_samples = n_samples,
-  n_B = n_B,
-  plot_radius = plot_radius,
-  design_seed = design_seed,
-  fold_seed = fold_seed,
-  sim_seed_base = sim_seed_base
-)
-saveRDS(run_settings, file.path(out_dir, "cv_range_targets_settings.rds"))
-
-results <- list()
-predictions <- list()
-row_id <- 1L
-fold_id_fixed <- NULL
-
-for (rep_id in seq_len(n_reps)) {
-  for (rr in seq_along(eff_range_grid)) {
-    eff_range <- eff_range_grid[rr]
-    phi <- 3 / eff_range
-    gamma <- eff_range + 100
-    sim_seed <- sim_seed_base + rep_id
-    checkpoint_file <- file.path(
-      checkpoint_dir,
-      sprintf("rep_%03d_range_%04d_checkpoint.rds", rep_id, eff_range)
-    )
-
-    msg("Replicate ", rep_id, " of ", n_reps,
-        "; effective range = ", eff_range,
-        "; gamma = ", gamma,
-        "; sim_seed = ", sim_seed)
-
-    sim <- cos_simulate_data(
-      X_rast = X_rast,
-      forest_sf = forest_sf,
-      n_B = n_B,
-      plot_radius = plot_radius,
-      gamma = gamma,
-      beta = beta_true,
-      tau_B_sq = tau_B_sq_true,
-      sigma_sq = sigma_sq_true,
-      phi = phi,
-      taper_code = 1L,
-      design_seed = design_seed,
-      sim_seed = sim_seed,
-      n_threads = n_threads,
-      verbose = FALSE
-    )
-    B_sf <- sim$B_sf
-
-    if (is.null(fold_id_fixed)) {
-      set.seed(fold_seed)
-      fold_id_fixed <- sample(rep(seq_len(k_folds), length.out = nrow(B_sf)))
-      saveRDS(fold_id_fixed, file.path(out_dir, "cv_range_targets_fold_id.rds"))
+study_case <- function(task, X_rast, forest_sf, settings, out_dir) {
+  tag <- sprintf("rep_%03d_range_%04d_prior_%04d", task$rep_id,
+                 task$eff_range, task$prior_scale)
+  checkpoint <- file.path(out_dir, "checkpoints", paste0(tag, ".rds"))
+  previous <- NULL
+  if (file.exists(checkpoint)) {
+    saved <- readRDS(checkpoint)
+    if (!study_compatible_settings(saved$settings, settings)) {
+      stop("Checkpoint settings differ; choose a new CTV_OUT_DIR: ", checkpoint)
     }
-    if (length(fold_id_fixed) != nrow(B_sf)) {
-      stop(
-        "The simulated number of observed-support polygons changed from ",
-        length(fold_id_fixed), " to ", nrow(B_sf),
-        ". Use a fixed design setup before running this repeated study."
-      )
+    if (all(saved$diagnostics$passed)) {
+      study_message("Resuming ", tag)
+      return(saved)
     }
-
-    prep_sp <- cos_prepare(
-      X_rast = X_rast,
-      B_sf = B_sf,
-      response_col = "y_B",
-      gamma = gamma,
-      spatial = TRUE,
-      n_threads = n_threads,
-      verbose = FALSE
-    )
-    priors_sp <- cos_default_priors(
-      prep = prep_sp,
-      beta_mu = beta_true,
-      beta_sd = c(intercept = 60, chm = 4),
-      tau_B_shape = 2,
-      tau_B_scale = tau_B_sq_true,
-      sigma_shape = 2,
-      sigma_scale = sigma_sq_true,
-      phi_lower = 3 / 1500,
-      phi_upper = 3 / 10
-    )
-    fit_sp <- cos_fit(
-      prep = prep_sp,
-      priors = priors_sp,
-      n_chains = n_chains,
-      starting = data.frame(
-        tau_B_sq = tau_B_sq_true,
-        sigma_sq = sigma_sq_true,
-        phi = phi
-      ),
-      tuning = c(log_tau_B_sq = 0.25, log_sigma_sq = 0.25, z_phi = 0.35),
-      n_batch = n_batch,
-      batch_length = batch_length,
-      seed = 100000 + 1000 * rep_id + rr,
-      report = 999,
-      verbose = FALSE
-    )
-
-    prep_ns <- cos_prepare(
-      X_rast = X_rast,
-      B_sf = B_sf,
-      response_col = "y_B",
-      spatial = FALSE,
-      n_threads = n_threads,
-      verbose = FALSE
-    )
-    priors_ns <- cos_default_priors(
-      prep = prep_ns,
-      beta_mu = beta_true,
-      beta_sd = c(intercept = 60, chm = 4),
-      tau_B_shape = 2,
-      tau_B_scale = stats::var(B_sf$y_B)
-    )
-    fit_ns <- cos_fit(
-      prep = prep_ns,
-      priors = priors_ns,
-      n_chains = n_chains,
-      starting = c(tau_B_sq = stats::var(B_sf$y_B)),
-      tuning = c(log_tau_B_sq = 0.25),
-      n_batch = n_batch,
-      batch_length = batch_length,
-      seed = 200000 + 1000 * rep_id + rr,
-      report = 999,
-      verbose = FALSE
-    )
-
-    fit_args_sp <- list(
-      n_chains = n_chains,
-      n_batch = n_batch,
-      batch_length = batch_length,
-      tuning = c(log_tau_B_sq = 0.25, log_sigma_sq = 0.25, z_phi = 0.35),
-      report = 999
-    )
-    fit_args_ns <- list(
-      n_chains = n_chains,
-      n_batch = n_batch,
-      batch_length = batch_length,
-      tuning = c(log_tau_B_sq = 0.25),
-      report = 999
-    )
-    recover_args <- list(burn_in = burn_in, thin = thin, n_samples = n_samples)
-
-    cv_sp <- cos_cv_observed(
-      fit = fit_sp,
-      X_rast = X_rast,
-      B_sf = B_sf,
-      response_col = "y_B",
-      target = c("latent", "observed"),
-      latent_col = "eta_B_true",
-      k = k_folds,
-      fold_id = fold_id_fixed,
-      fit_args = fit_args_sp,
-      recover_args = recover_args,
-      seed = 300000 + 1000 * rep_id + rr,
-      verbose = FALSE
-    )
-    cv_ns <- cos_cv_observed(
-      fit = fit_ns,
-      X_rast = X_rast,
-      B_sf = B_sf,
-      response_col = "y_B",
-      target = c("latent", "observed"),
-      latent_col = "eta_B_true",
-      k = k_folds,
-      fold_id = fold_id_fixed,
-      fit_args = fit_args_ns,
-      recover_args = recover_args,
-      seed = 400000 + 1000 * rep_id + rr,
-      verbose = FALSE
-    )
-
-    for (model in c("spatial", "nonspatial")) {
-      cv <- if (model == "spatial") cv_sp else cv_ns
-      for (target in cv$summary$target) {
-        target_label <- if (target == "latent") "latent_eta_B" else "observed_y_B"
-        summary_row <- cv$summary[cv$summary$target == target, , drop = FALSE]
-        theta <- if (model == "spatial") fit_sp$theta_samples else fit_ns$theta_samples
-        theta <- theta[theta$iter >= burn_in, , drop = FALSE]
-        results[[row_id]] <- data.frame(
-          rep_id = rep_id,
-          target = target_label,
-          model = model,
-          eff_range = eff_range,
-          summary_row[, setdiff(names(summary_row), "target"), drop = FALSE],
-          tau_B_sq_median = stats::median(theta$tau_B_sq),
-          sigma_sq_median = if (all(is.na(theta$sigma_sq))) {
-            NA_real_
-          } else {
-            stats::median(theta$sigma_sq, na.rm = TRUE)
-          },
-          eff_range_median = if (all(is.na(theta$eff_range))) {
-            NA_real_
-          } else {
-            stats::median(theta$eff_range, na.rm = TRUE)
-          },
-          stringsAsFactors = FALSE
-        )
-
-        pred <- cv$predictions[cv$predictions$target == target, , drop = FALSE]
-        pred$target <- target_label
-        pred$model <- model
-        pred$eff_range <- eff_range
-        pred$rep_id <- rep_id
-        predictions[[row_id]] <- pred
-        row_id <- row_id + 1L
+    previous <- saved
+  }
+  study_message("Starting ", tag)
+  sim <- cosTapered::cos_simulate_data(
+    X_rast = X_rast, forest_sf = forest_sf, n_B = 49L, plot_radius = 16,
+    gamma = settings$gamma, beta = c(intercept = -10, chm = 15.87132),
+    tau_B_sq = 250, sigma_sq = 750,
+    phi = 3 / if (task$eff_range == 0) 150 else task$eff_range,
+    design_seed = 1101L, sim_seed = 220200L + task$rep_id,
+    n_threads = settings$n_threads, verbose = FALSE
+  )
+  B_sf <- sim$B_sf
+  # The simulator requires sigma_sq > 0. Removing its known spatial component
+  # produces the exact nonspatial truth case, retaining the same Gaussian nugget.
+  if (task$eff_range == 0) {
+    B_sf$eta_B_true <- as.numeric(sim$prep$X_B %*% c(-10, 15.87132))
+    B_sf$omega_B_true <- 0
+    B_sf$y_B <- B_sf$eta_B_true + B_sf$eps_B_true
+  }
+  set.seed(3303L)
+  fold_id <- sample(rep(seq_len(settings$k_folds), length.out = nrow(B_sf)))
+  scores <- predictions <- diagnostics <- attempts <- list()
+  for (model in c("spatial", "nonspatial")) {
+    first_attempt <- 1L
+    if (!is.null(previous)) {
+      old_diag <- previous$diagnostics[previous$diagnostics$model == model, ]
+      old_attempts <- previous$attempts[previous$attempts$model == model, ]
+      attempts[[length(attempts) + 1L]] <- old_attempts[, setdiff(names(old_attempts), names(task))]
+      if (all(old_diag$passed)) {
+        diagnostics[[model]] <- old_diag[, setdiff(names(old_diag), names(task))]
+        scores[[model]] <- previous$scores[previous$scores$model == model, setdiff(names(previous$scores), names(task))]
+        predictions[[model]] <- previous$predictions[previous$predictions$model == model, setdiff(names(previous$predictions), names(task))]
+        next
+      }
+      first_attempt <- max(old_attempts$attempt) + 1L
+      if (first_attempt > settings$max_attempts) {
+        stop("Increase CTV_MAX_ATTEMPTS to retry failed fits in ", tag)
       }
     }
-
-    completed_results <- do.call(rbind, results)
-    completed_predictions <- do.call(rbind, predictions)
-    saveRDS(
-      list(
-        settings = run_settings,
-        rep_id = rep_id,
-        eff_range = eff_range,
-        gamma = gamma,
-        phi = phi,
-        sim_seed = sim_seed,
-        truth = sim$truth,
-        B_sf = B_sf,
-        fold_id = fold_id_fixed,
-        fit_spatial = fit_sp,
-        fit_nonspatial = fit_ns,
-        cv_spatial = cv_sp,
-        cv_nonspatial = cv_ns,
-        completed_results = completed_results,
-        completed_predictions = completed_predictions
-      ),
-      checkpoint_file
+    spatial <- model == "spatial"
+    prep <- cosTapered::cos_prepare(
+      X_rast, B_sf, response_col = "y_B", spatial = spatial,
+      gamma = settings$gamma, n_threads = settings$n_threads, verbose = FALSE
     )
-    write_outputs(completed_results, completed_predictions, out_dir)
-    msg("Checkpointed replicate ", rep_id, "; effective range = ", eff_range)
+    priors <- study_priors(prep, task$prior_scale)
+    starts <- study_starts(spatial, task$prior_scale, settings$n_chains)
+    tuning <- if (spatial) c(log_tau_B_sq = 0.5, log_sigma_sq = 0.5, z_phi = 0.5) else c(log_tau_B_sq = 0.5)
+    # This one-draw template only supplies geometry and the fixed priors to CV.
+    # Every scored prediction below comes from a fresh training-fold refit.
+    template <- cosTapered::cos_fit(
+      prep, priors, n_chains = 1L, starting = starts[1, , drop = FALSE],
+      tuning = tuning, n_batch = 1L, batch_length = 1L, seed = 1L, verbose = FALSE
+    )
+    seed <- 300000L + 10000L * task$rep_id + 10L * task$eff_range + as.integer(spatial)
+    for (attempt in seq.int(first_attempt, settings$max_attempts)) {
+      n_batch <- settings$n_batch * 2L^(attempt - 1L)
+      iterations <- n_batch * settings$batch_length
+      burn_in <- floor(iterations / 2) + 1L
+      thin <- max(1L, ceiling((iterations - burn_in + 1L) / settings$draws_per_chain))
+      study_message(tag, " ", model, ": ", iterations, " iterations per chain")
+      cv <- cosTapered::cos_cv_observed(
+        template, X_rast, B_sf, response_col = "y_B",
+        target = c("latent", "observed"), latent_col = "eta_B_true",
+        k = settings$k_folds, fold_id = fold_id,
+        fit_args = list(n_chains = settings$n_chains, starting = starts,
+                        tuning = tuning, n_batch = n_batch,
+                        batch_length = settings$batch_length, report = n_batch + 1L),
+        recover_args = list(burn_in = burn_in, thin = thin),
+        seed = seed, keep_fits = TRUE, verbose = FALSE
+      )
+      diag <- study_diagnostics(cv$fits, burn_in, settings)
+      passed <- all(diag$passed)
+      attempts[[length(attempts) + 1L]] <- data.frame(
+        model = model, attempt = attempt, iterations = iterations,
+        max_rhat = max(diag$rhat), min_ess_bulk = min(diag$ess_bulk),
+        min_ess_tail = min(diag$ess_tail), passed = passed,
+        elapsed_seconds = cv$timing[["elapsed"]]
+      )
+      if (passed) break
+      study_message(tag, " ", model, " attempt ", attempt,
+                    ": Rhat=", round(max(diag$rhat), 3),
+                    ", min ESS=", round(min(diag$ess_bulk, diag$ess_tail)))
+    }
+    diag$model <- model
+    diag$iterations <- iterations
+    diag$burn_in <- burn_in
+    diag$thin <- thin
+    diag$prediction_draws <- settings$n_chains * length(seq.int(burn_in, iterations, by = thin))
+    diagnostics[[model]] <- diag
+    z <- cv$summary
+    z$model <- model
+    z$diagnostics_passed <- passed
+    scores[[model]] <- z
+    z <- cv$predictions
+    z$model <- model
+    predictions[[model]] <- z
+    if (!passed) {
+      saveRDS(lapply(cv$fits, function(fit) fit$theta_samples),
+              file.path(out_dir, "checkpoints", paste0(tag, "_", model, "_failed_traces.rds")))
+    }
   }
+  add_task <- function(z) {
+    z <- do.call(rbind, z)
+    for (name in names(task)) z[[name]] <- task[[name]]
+    rownames(z) <- NULL
+    z
+  }
+  result <- list(settings = settings, scores = add_task(scores),
+                 predictions = add_task(predictions), diagnostics = add_task(diagnostics),
+                 attempts = add_task(attempts),
+                 design = data.frame(B_id = B_sf$B_id,
+                                     sf::st_coordinates(sf::st_centroid(sf::st_geometry(B_sf))),
+                                     area_m2 = B_sf$area_m2, fold = fold_id))
+  saveRDS(result, paste0(checkpoint, ".tmp"))
+  stopifnot(file.rename(paste0(checkpoint, ".tmp"), checkpoint))
+  study_message("Completed ", tag)
+  result
 }
 
-results <- do.call(rbind, results)
-predictions <- do.call(rbind, predictions)
-summaries <- write_outputs(results, predictions, out_dir)
+study_summarize <- function(data, groups, metrics) {
+  parts <- split(data, interaction(data[groups], drop = TRUE))
+  out <- lapply(parts, function(z) {
+    row <- z[1, groups, drop = FALSE]
+    row$n_reps <- nrow(z)
+    for (metric in metrics) {
+      x <- z[[metric]]
+      stopifnot(all(is.finite(x)))
+      row[[paste0(metric, "_mean")]] <- mean(x)
+      row[[paste0(metric, "_se")]] <- stats::sd(x) / sqrt(length(x))
+      row[[paste0(metric, "_sd")]] <- stats::sd(x)
+    }
+    row
+  })
+  out <- do.call(rbind, out)
+  rownames(out) <- NULL
+  out[do.call(order, out[groups]), ]
+}
+study_improvement <- function(scores) {
+  keys <- c("rep_id", "eff_range", "prior_scale", "target")
+  z <- merge(scores[scores$model == "spatial", ],
+             scores[scores$model == "nonspatial", ], by = keys,
+             suffixes = c("_spatial", "_nonspatial"))
+  stopifnot(nrow(z) * 2L == nrow(scores))
+  for (metric in c("RMSPE", "CRPS")) {
+    z[[paste0(metric, "_improvement_pct")]] <-
+      100 * (z[[paste0(metric, "_nonspatial")]] - z[[paste0(metric, "_spatial")]]) /
+      z[[paste0(metric, "_nonspatial")]]
+    z[[paste0(metric, "_win")]] <- as.numeric(z[[paste0(metric, "_spatial")]] < z[[paste0(metric, "_nonspatial")]])
+  }
+  z
+}
 
-sink(file.path(out_dir, "assessment.txt"))
-cat("Repeated observed-support CV range target check\n")
-cat("================================================\n\n")
-cat("Settings:\n")
-print(run_settings)
-cat("\nMean summary:\n")
-print(summaries$mean_summary)
-cat("\nMean improvement:\n")
-print(summaries$mean_improvement)
-cat("\nInterpretation notes:\n")
-cat("* Domain, plot design, and fold assignment are fixed across replicates and ranges.\n")
-cat("* Replicates vary only the simulated spatial process and nugget realization.\n")
-cat("* Each replicate uses the same simulation seed across ranges to couple process draws where possible.\n")
-cat("* latent_eta_B scores posterior eta samples against simulated eta_B_true.\n")
-cat("* observed_y_B scores nugget-added posterior samples against simulated y_B.\n")
-sink()
+run_spatial_guidance_study <- function() {
+  for (pkg in c("cosTapered", "sf", "raster", "posterior")) {
+    if (!requireNamespace(pkg, quietly = TRUE)) stop("Install package ", pkg, " first.")
+  }
+  settings <- list(
+    study_version = 2L,
+    n_reps = study_env_number("CTV_N_REPS", 10L, TRUE),
+    eff_ranges = study_env_vector("CTV_EFF_RANGES", c(0, 50, 150, 350, 750, 1000)),
+    prior_scales = study_env_vector("CTV_PRIOR_SCALES", c(500, 250, 1000)),
+    aggregate_factor = study_env_number("CTV_AGG_FACTOR", 4L, TRUE),
+    gamma = study_env_number("CTV_GAMMA", 1500),
+    k_folds = study_env_number("CTV_K_FOLDS", 5L, TRUE),
+    n_chains = study_env_number("CTV_N_CHAINS", 4L, TRUE),
+    n_batch = study_env_number("CTV_N_BATCH", 400L, TRUE),
+    batch_length = study_env_number("CTV_BATCH_LENGTH", 25L, TRUE),
+    max_attempts = study_env_number("CTV_MAX_ATTEMPTS", 3L, TRUE),
+    draws_per_chain = study_env_number("CTV_DRAWS_PER_CHAIN", 500L, TRUE),
+    rhat_limit = 1.01, ess_min = 400,
+    n_threads = study_env_number("CTV_N_THREADS", 1L, TRUE)
+  )
+  if (any(settings$eff_ranges < 0) || any(settings$prior_scales <= 0) ||
+      settings$n_chains < 4 || settings$k_folds < 2 ||
+      settings$n_batch * settings$batch_length < 1000) stop("Invalid study settings.")
+  workers <- study_env_number("CTV_WORKERS", 1L, TRUE)
+  if (.Platform$OS.type != "unix" && workers > 1L) stop("Use CTV_WORKERS=1 on Windows.")
+  out_dir <- Sys.getenv("CTV_OUT_DIR", "spatial-cos-guidance-output")
+  dir.create(file.path(out_dir, "checkpoints"), recursive = TRUE, showWarnings = FALSE)
+  existing <- file.path(out_dir, "settings.rds")
+  if (file.exists(existing) && !study_compatible_settings(readRDS(existing), settings)) {
+    stop("Settings differ from existing run. Choose a new CTV_OUT_DIR.")
+  }
+  saveRDS(settings, existing)
+  dput(settings, file = file.path(out_dir, "settings.R"))
+  writeLines(capture.output(sessionInfo()), file.path(out_dir, "session-info.txt"))
+  inputs <- system.file("extdata", c("example_chm.tif", "example_forest.gpkg"), package = "cosTapered")
+  write.csv(data.frame(file = basename(inputs), md5 = unname(tools::md5sum(inputs))),
+            file.path(out_dir, "input-checksums.csv"), row.names = FALSE)
+  chm <- raster::raster(inputs[1])
+  if (settings$aggregate_factor > 1) {
+    chm <- raster::aggregate(chm, fact = settings$aggregate_factor, fun = mean, na.rm = TRUE)
+  }
+  names(chm) <- "chm"
+  intercept <- chm
+  intercept[] <- ifelse(is.na(raster::getValues(chm)), NA_real_, 1)
+  X_rast <- raster::stack(intercept, chm)
+  names(X_rast) <- c("intercept", "chm")
+  forest_sf <- sf::st_read(inputs[2], quiet = TRUE)
+  forest_sf <- sf::st_transform(forest_sf, sf::st_crs(raster::crs(chm)))
+  tasks <- expand.grid(rep_id = seq_len(settings$n_reps),
+                       eff_range = settings$eff_ranges, prior_scale = settings$prior_scales)
+  jobs <- lapply(seq_len(nrow(tasks)), function(i) as.list(tasks[i, ]))
+  started <- Sys.time()
+  results <- parallel::mclapply(jobs, study_case, X_rast = X_rast,
+                               forest_sf = forest_sf, settings = settings,
+                               out_dir = out_dir, mc.cores = workers,
+                               mc.preschedule = FALSE, mc.set.seed = FALSE)
+  failed <- vapply(results, inherits, logical(1), "try-error")
+  if (any(failed)) stop("Study task failed; check the log. Completed checkpoints are retained.")
+  tables <- list()
+  for (name in c("scores", "predictions", "diagnostics", "attempts")) {
+    tables[[name]] <- do.call(rbind, lapply(results, `[[`, name))
+    write.csv(tables[[name]], file.path(out_dir, paste0(name, ".csv")), row.names = FALSE)
+  }
+  stopifnot(all(vapply(results, function(x) identical(x$design, results[[1]]$design), logical(1))))
+  write.csv(results[[1]]$design, file.path(out_dir, "design.csv"), row.names = FALSE)
+  improvements <- study_improvement(tables$scores)
+  write.csv(improvements, file.path(out_dir, "paired-scores.csv"), row.names = FALSE)
+  summary <- study_summarize(tables$scores, c("prior_scale", "target", "model", "eff_range"),
+                             c("RMSPE", "CRPS", "coverage_95", "mean_interval_width"))
+  gains <- study_summarize(improvements, c("prior_scale", "target", "eff_range"),
+                           c("RMSPE_improvement_pct", "CRPS_improvement_pct", "RMSPE_win", "CRPS_win"))
+  write.csv(summary, file.path(out_dir, "summary.csv"), row.names = FALSE)
+  write.csv(gains, file.path(out_dir, "improvement.csv"), row.names = FALSE)
+  writeLines(sprintf("Elapsed wall time: %.1f minutes", as.numeric(difftime(Sys.time(), started, units = "mins"))),
+              file.path(out_dir, "runtime.txt"))
+  if (!all(tables$diagnostics$passed)) {
+    stop("Some fits failed the diagnostic thresholds. Scores are saved, but do not publish them as validated results.")
+  }
+  study_message("All fits passed diagnostics. Results saved to ", out_dir)
+  invisible(tables)
+}
 
-msg("Wrote outputs to ", out_dir)
-print(summaries$mean_improvement)
+if (!identical(Sys.getenv("CTV_DEFINE_ONLY"), "TRUE")) run_spatial_guidance_study()

@@ -1,0 +1,33 @@
+R Under development (unstable) (2024-09-21 r87186)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 20.04.6 LTS
+
+Matrix products: default
+BLAS/LAPACK: /opt/OpenBLAS/lib/libopenblas_zen-r0.3.28.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8
+ [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8
+ [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C
+[10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C
+
+time zone: America/Detroit
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+loaded via a namespace (and not attached):
+ [1] terra_1.7-83         vctrs_0.7.3          cli_3.6.3
+ [4] rlang_1.2.0          BayesLogit_2.4       DBI_1.2.3
+ [7] KernSmooth_2.23-24   tensorA_0.36.2.1     cosTapered_0.0.2
+[10] generics_0.1.3       sf_1.0-21            glue_1.8.0
+[13] backports_1.5.0      e1071_1.7-16         distributional_0.5.0
+[16] sp_2.1-4             fansi_1.0.6          grid_4.5.0
+[19] tibble_3.2.1         classInt_0.4-11      abind_1.4-8
+[22] lifecycle_1.0.5      compiler_4.5.0       posterior_1.6.0
+[25] codetools_0.2-20     pkgconfig_2.0.3      Rcpp_1.1.0
+[28] lattice_0.22-6       utf8_1.2.4           class_7.3-22
+[31] pillar_1.9.0         magrittr_2.0.3       checkmate_2.3.2
+[34] Matrix_1.7-5         tools_4.5.0          proxy_0.4-27
+[37] raster_3.6-30        units_0.8-7

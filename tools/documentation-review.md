@@ -26,8 +26,13 @@ Reviewed against the R and C++ implementation of cosTapered 0.0.2 on
   identified saved figures and tables as outputs from earlier runs. Corrected
   the binomial article's claim that its displayed probability SDs increase
   monotonically.
-- The spatial study changes the taper distance along with exponential range:
-  `gamma = effective_range + 100`. This is now included in the study description.
+- Replaced the spatial-guidance study with a controlled comparison. Its priors
+  are independent of held-out responses and shared parameters use identical
+  priors across models. The taper stays fixed as exponential range changes.
+  Added a no-spatial-effect case, variance-prior sensitivity, multiple chains,
+  diagnostic gates, paired simulation uncertainty, and archived results.
+  The article distinguishes latent and observed targets and reports interval
+  undercoverage as well as prediction gains.
 - Completed the model article's Gaussian recovery formula by defining its
   information vector, and rebuilt the matching model PDF.
 - Corrected installation instructions: the repository has a prebuilt PDF;
@@ -49,16 +54,26 @@ see [maintenance instructions](README.md).
 
 - Package installation and the existing test suite passed.
 - `R CMD build` and `R CMD check --no-manual` passed with no errors or warnings.
-  The sole note concerns installed package size, primarily vignette assets.
+  The sole note concerns installed package size, from vignette assets and
+  archived study data.
 - The README example and the binomial and negative-binomial workflow chunks
   ran, including chunks marked `eval: false`. The simulations reproduced the
   documented 15 binary successes and total count of 147.
 - The full introductory Gaussian workflow also ran successfully: three
   chains, recovery, prediction over all 65,792 raster cells and 49 polygons,
   and ten-fold cross-validation for both latent and observed targets.
-- A reduced spatial study completed with one replicate, one range setting,
-  two folds, and short chains. The full 50-replicate study was not rerun, so its
-  saved numerical results and original figures were not independently regenerated.
+- The redesigned spatial study ran in full: ten replicates, six generating
+  cases, three prior scales, and five folds for both models. All 1,800 final
+  fold fits passed the four-chain diagnostic gates, with 10,000–40,000
+  iterations per chain. Maximum R-hat was 1.009859; minimum bulk and tail ESS
+  were 517.1 and 402.8. Failed shorter attempts were rerun and recorded.
+- An independent audit reconstructed dataset-level scores from all 35,280
+  held-out prediction records and checked common observations, latent truth,
+  and folds across models and priors. Every comparison passed. New tables and
+  figures use these archived results; the previous figures were removed.
+- Regression tests check response-independent shared priors, paired score
+  aggregation, compatible checkpoint settings, disagreement or stuck chains,
+  and refusal to plot results with failed diagnostics.
 - The pkgdown build and configuration checks passed. All 52 generated HTML
   pages were scanned for local links, anchors, images, scripts, stylesheets,
   and CSS resources; none were missing.
@@ -66,4 +81,4 @@ see [maintenance instructions](README.md).
   indexes, equations, search, and mobile navigation. No broken images,
   equation errors, horizontal page overflow, or browser errors were found.
 
-The GitHub Actions workflow has been checked locally but has not run on GitHub.
+The GitHub Actions workflow has successfully built and deployed the site.

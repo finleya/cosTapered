@@ -20,6 +20,7 @@ cosTapered/vignettes/*.html
 cosTapered/vignettes/*_files/
 cosTapered/vignettes/.quarto/
 docs/
+spatial-cos-guidance-output/
 
 *.log
 *.aux
