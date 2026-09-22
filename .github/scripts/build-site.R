@@ -1,4 +1,4 @@
-# Run from the repository root: Rscript tools/build-site.R
+# Run from the repository root: Rscript .github/scripts/build-site.R
 # Build from a temporary copy so README assets and Quarto output never alter
 # the package source. README.md at the repository root is the canonical home.
 build_site <- function() {
