@@ -5,6 +5,9 @@ of Zhang et al. (2024) for forest inventory and remote-sensing problems where
 responses, predictors, and prediction targets live on different spatial
 supports.
 
+Visit the [cosTapered documentation website](https://finleya.github.io/cosTapered/)
+for getting-started guides, vignettes, and the function reference.
+
 The motivating case is common in forest applications: LiDAR-derived predictors
 are available on a fine raster grid, field responses are observed on larger
 fixed-area plots, and final summaries are needed for irregular stands or other

@@ -16,7 +16,7 @@ build_site <- function() {
   fs::dir_copy(file.path(repo, "cosTapered"), pkg)
 
   homepage <- readLines(file.path(repo, "README.md"), warn = FALSE)
-  homepage <- gsub("https://finleya.github.io/cosTapered/", "", homepage,
+  homepage <- gsub("https://finleya.github.io/cosTapered/", "./", homepage,
                    fixed = TRUE)
   homepage <- gsub("cosTapered/vignettes/cosTapered.pdf",
                    "articles/cosTapered.pdf", homepage, fixed = TRUE)

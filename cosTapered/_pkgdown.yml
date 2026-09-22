@@ -3,11 +3,7 @@ destination: ../docs
 
 template:
   bootstrap: 5
-  bootswatch: flatly
   math-rendering: katex
-  bslib:
-    primary: "#25634b"
-    link-color: "#25634b"
 
 repo:
   url:
