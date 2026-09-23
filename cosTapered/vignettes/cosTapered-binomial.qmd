@@ -1,7 +1,7 @@
 ---
 title: "Binomial COS response model"
 subtitle: "Polya-Gamma fitting, marginal probability prediction, and areal summaries"
-author: "Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee"
+author: "Andrew O. Finley"
 format:
   html:
     toc: true

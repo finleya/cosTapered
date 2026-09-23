@@ -1,7 +1,7 @@
 ---
 title: "Model and Computing Details for cosTapered"
 subtitle: "Model notation, MCMC, prediction targets, and practical support guidance"
-author: "Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee"
+author: "Andrew O. Finley"
 format:
   html:
     toc: true

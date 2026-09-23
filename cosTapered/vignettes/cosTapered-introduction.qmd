@@ -1,7 +1,7 @@
 ---
 title: "Getting Started with cosTapered"
 subtitle: "Gaussian change-of-support fitting, fine-grid prediction, and areal summaries"
-author: "Andrew O. Finley, Lu Zhang, Arne Nothdurft, and Sudipto Banerjee"
+author: "Andrew O. Finley"
 format:
   html:
     toc: true
