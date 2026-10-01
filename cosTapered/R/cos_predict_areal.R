@@ -119,6 +119,14 @@ cos_predict_areal <- function(fit,
     stop("U_blocks covariates are not compatible with the fitted covariates.")
   }
 
+  grid_cache <- if (spatial) {
+    cos_prepare_areal_grid_covariance(
+      U_blocks, H_BA_comp, gamma, taper_code,
+      need_self = spatial_uncertainty == "marginal" || family != "gaussian",
+      n_threads = n_threads, verbose = verbose
+    )
+  } else vector("list", n_u)
+
   if (family %in% c("binomial", "negative_binomial")) {
     is_nb <- identical(family, "negative_binomial")
     if (!is_nb && target != "latent") {
@@ -202,30 +210,37 @@ cos_predict_areal <- function(fit,
         U_k <- blocks[[kk]]
 
         if (spatial) {
-          C_pixel_B <- make_C_pred_B_tapered_Rcall(
-            pred_coords = U_k$coords,
-            H_BA_comp = H_BA_comp,
-            phi = phi,
-            gamma = gamma,
-            taper_code = taper_code,
-            n_threads = n_threads
-          )
+          cached_cov <- cos_eval_areal_grid_covariance(grid_cache[[kk]], phi)
+          C_UB <- cached_cov$C_UB
+          if (is.null(C_UB)) {
+            C_pixel_B <- make_C_pred_B_tapered_Rcall(
+              pred_coords = U_k$coords,
+              H_BA_comp = H_BA_comp,
+              phi = phi,
+              gamma = gamma,
+              taper_code = taper_code,
+              n_threads = n_threads
+            )
 
-          C_UB <- as.numeric(crossprod(U_k$h, C_pixel_B))
+            C_UB <- as.numeric(crossprod(U_k$h, C_pixel_B))
+          }
           omega_U_mean <- as.numeric(crossprod(C_UB, C_B_inv_omega_B))
 
-          plot_start <- c(1L, length(U_k$h) + 1L)
-          C_UU <- make_C_B_tapered_Rcall(
-            plot_start = plot_start,
-            h = U_k$h,
-            x = U_k$coords[, 1],
-            y = U_k$coords[, 2],
-            phi = phi,
-            gamma = gamma,
-            taper_code = taper_code,
-            n_threads = n_threads
-          )
-          C_UU <- as.numeric(C_UU[1, 1])
+          C_UU <- cached_cov$C_UU
+          if (is.null(C_UU)) {
+            plot_start <- c(1L, length(U_k$h) + 1L)
+            C_UU <- make_C_B_tapered_Rcall(
+              plot_start = plot_start,
+              h = U_k$h,
+              x = U_k$coords[, 1],
+              y = U_k$coords[, 2],
+              phi = phi,
+              gamma = gamma,
+              taper_code = taper_code,
+              n_threads = n_threads
+            )
+            C_UU <- as.numeric(C_UU[1, 1])
+          }
 
           C_B_inv_C_BU <- backsolve(R_C_B, forwardsolve(t(R_C_B), C_UB))
           cond_var_cor <- max(0, C_UU - as.numeric(crossprod(C_UB, C_B_inv_C_BU)))
@@ -459,33 +474,40 @@ cos_predict_areal <- function(fit,
       }
 
       if (spatial) {
-        C_pixel_B <- make_C_pred_B_tapered_Rcall(
-          pred_coords = U_k$coords,
-          H_BA_comp = H_BA_comp,
-          phi = phi,
-          gamma = gamma,
-          taper_code = taper_code,
-          n_threads = n_threads
-        )
-
-        C_UB <- as.numeric(crossprod(U_k$h, C_pixel_B))
-        omega_U_mean <- as.numeric(crossprod(C_UB, C_B_inv_omega_B))
-        omega_U <- omega_U_mean
-
-        if (spatial_uncertainty == "marginal") {
-          plot_start <- c(1L, length(U_k$h) + 1L)
-
-          C_UU <- make_C_B_tapered_Rcall(
-            plot_start = plot_start,
-            h = U_k$h,
-            x = U_k$coords[, 1],
-            y = U_k$coords[, 2],
+        cached_cov <- cos_eval_areal_grid_covariance(grid_cache[[kk]], phi)
+        C_UB <- cached_cov$C_UB
+        if (is.null(C_UB)) {
+          C_pixel_B <- make_C_pred_B_tapered_Rcall(
+            pred_coords = U_k$coords,
+            H_BA_comp = H_BA_comp,
             phi = phi,
             gamma = gamma,
             taper_code = taper_code,
             n_threads = n_threads
           )
-          C_UU <- as.numeric(C_UU[1, 1])
+
+          C_UB <- as.numeric(crossprod(U_k$h, C_pixel_B))
+        }
+        omega_U_mean <- as.numeric(crossprod(C_UB, C_B_inv_omega_B))
+        omega_U <- omega_U_mean
+
+        if (spatial_uncertainty == "marginal") {
+          C_UU <- cached_cov$C_UU
+          if (is.null(C_UU)) {
+            plot_start <- c(1L, length(U_k$h) + 1L)
+
+            C_UU <- make_C_B_tapered_Rcall(
+              plot_start = plot_start,
+              h = U_k$h,
+              x = U_k$coords[, 1],
+              y = U_k$coords[, 2],
+              phi = phi,
+              gamma = gamma,
+              taper_code = taper_code,
+              n_threads = n_threads
+            )
+            C_UU <- as.numeric(C_UU[1, 1])
+          }
 
           C_B_inv_C_BU <- backsolve(R_C_B, forwardsolve(t(R_C_B), C_UB))
           cond_var_cor <- C_UU - as.numeric(crossprod(C_UB, C_B_inv_C_BU))

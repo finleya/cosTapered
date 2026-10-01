@@ -210,6 +210,11 @@ cos_make_areal_blocks <- function(U_sf,
     blocks = blocks,
     row_sums = row_sums,
     x_names = x_names,
+    grid = list(
+      res = raster::res(X_rast),
+      origin = c(raster::xmin(X_rast), raster::ymin(X_rast)) +
+        raster::res(X_rast) / 2
+    ),
     missing = missing,
     timing = timing,
     call = match.call()

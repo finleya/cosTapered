@@ -1963,7 +1963,14 @@ extern "C" SEXP make_C_A_tapered_dense(SEXP a_x_r,
   return C_A_r;
 }
 
+extern "C" SEXP cos_areal_grid_self_weights_cpp(SEXP, SEXP, SEXP, SEXP, SEXP);
+
+extern "C" SEXP cos_areal_grid_cross_weights(SEXP, SEXP, SEXP, SEXP, SEXP,
+                                              SEXP, SEXP, SEXP, SEXP);
+
 static const R_CallMethodDef CallEntries[] = {
+  {"cos_areal_grid_self_weights_cpp", (DL_FUNC) &cos_areal_grid_self_weights_cpp, 5},
+  {"cos_areal_grid_cross_weights", (DL_FUNC) &cos_areal_grid_cross_weights, 9},
   {"gaussian_metrop_sampler", (DL_FUNC) &gaussian_metrop_sampler, 27},
   {"binomial_pg_sampler", (DL_FUNC) &binomial_pg_sampler, 30},
   {"make_C_B_tapered", (DL_FUNC) &make_C_B_tapered, 8},

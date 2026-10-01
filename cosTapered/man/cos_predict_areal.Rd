@@ -58,6 +58,24 @@ spatial uncertainty for each prediction unit, but they are not joint samples
 across units. Do not use those samples for totals, contrasts, rankings, or
 other summaries that require cross-unit posterior covariance.
 
+Large supports on square raster grids use cached covariance sums grouped by
+exact squared grid distance. Self-covariance weights are computed once using
+parallel C++ loops over unordered cell pairs. Cells are sorted by their y
+coordinate to stop scanning beyond the taper range, and each thread uses a
+private accumulator. For sufficiently large supports, cross-covariance weights
+with aligned observed-support cells are also cached, with preparation
+parallelized over observed supports. The cells, fractional coverage weights,
+covariance kernel, and prediction target are unchanged; numerical results can
+differ by floating-point roundoff. No additional packages are required.
+
+The optimization uses grid metadata from \code{cos_make_areal_blocks()}.
+Rebuild previously saved blocks to enable it. Small supports, incompatible
+grids, and calculations exceeding internal memory limits retain the direct
+calculation. Persistent caches are limited to approximately 256 MiB per
+prediction call. Self-covariance preparation uses additional temporary storage
+for the sorted cells and at most 64 MiB of thread accumulators. It does not
+allocate a dense raster or a list of all cell pairs.
+
 For binomial fits, the function reports link-scale \code{eta_*} summaries and
 response probability \code{p_*} summaries. For negative-binomial fits, it
 reports link-scale \code{eta_*} summaries and mean-count \code{mu_*}

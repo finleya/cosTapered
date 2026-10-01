@@ -32,8 +32,8 @@ on covered cells rather than the full prediction polygon.
 }
 \value{
 A list with class \code{"cos_areal_blocks"} containing areal support blocks
-and \code{timing}, a named numeric vector with user, system, and elapsed
-seconds.
+and \code{grid} metadata (raster resolution and cell-center origin), plus
+\code{timing}, a named numeric vector with user, system, and elapsed seconds.
 }
 \examples{
 \dontrun{

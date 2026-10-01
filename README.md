@@ -212,6 +212,15 @@ Set `spatial_uncertainty = "marginal"` explicitly for marginal uncertainty.
 Posterior means and SDs are returned with `keep_samples = FALSE`; use
 `keep_samples = TRUE` to also obtain draws and 2.5%, 50%, and 97.5% quantiles.
 
+Large areal supports on square raster grids automatically cache covariance
+weights by exact grid distance. Parallel C++ pair loops prepare these weights
+once, using symmetry and the taper to reduce the self-covariance calculation;
+sufficiently large targets also cache covariances with aligned observed supports. This preserves the original cells, area weights,
+and marginal uncertainty calculation up to floating-point roundoff. Rebuild
+older `U_blocks` objects with `cos_make_areal_blocks()` to supply the required
+grid metadata. Other grids and calculations exceeding internal memory limits
+use the existing direct calculation.
+
 Without `pred_coords` and `X_pred`, fine prediction covers only the complete
 raster cells intersecting observed polygons. Supply both arguments to map the
 full raster domain, as shown in the introductory article.
